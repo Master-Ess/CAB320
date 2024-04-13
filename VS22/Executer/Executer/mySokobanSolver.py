@@ -29,6 +29,7 @@ Last modified by 2022-03-27  by f.maire@qut.edu.au
 # You have to make sure that your code works with 
 # the files provided (search.py and sokoban.py) as your code will be tested 
 # with these files
+from itertools import filterfalse
 import search 
 import sokoban
 
@@ -73,7 +74,61 @@ def taboo_cells(warehouse):
        The returned string should NOT have marks for the worker, the targets,
        and the boxes.  
     '''
-    ##         "INSERT YOUR CODE HERE"    
+    ##         "INSERT YOUR CODE HERE"
+
+    wall_patterns = [((1,0),(-1,0)), #hoz
+                    ((0,1),(0,-1))  #vert
+                     ]
+    
+    corner_patterns = [((1,0),(0,1)),
+                      ((1,0),(0,-1)),
+                      ((-1,0),(0,1)),
+                      ((-1,0),(0,-1)),
+                       ]
+    
+
+    
+    def is_corner(warehouse, loc): #i missed up indentation
+        for each in corner_patterns:
+                search_pattern = ((loc[0] + each[0][0],loc[1] + each[0][1]), (loc[0] + each[1][0],loc[1] + each[1][1]))
+                applicable_walls = 0
+            
+                for search_loc in search_pattern:
+                    for wall_loc in warehouse.walls:
+                    
+                        if search_loc == wall_loc:
+                            applicable_walls = applicable_walls + 1
+                            
+                            #do checks for obj here
+                        
+                            if applicable_walls == 2:
+                                return (True, search_pattern, each)
+                        
+                            break
+        return (False, None, None)
+
+    taboo_cell_list = []
+
+    #rule 1
+    for cell in warehouse.walls:
+        resp = is_corner(warehouse, cell)
+        if resp[0]:
+            safe = False
+            dx = resp[2][0][0]
+            dy = resp[2][1][1]
+            taboo_cell = (cell[0] + dx, cell[1] + dy)
+            for obj in warehouse.targets:
+                    if taboo_cell == obj:
+                        safe = True
+                        break
+                    
+            if safe == False:
+                   taboo_cell_list.append(taboo_cell)
+                
+            
+
+    print('EOF')
+
     raise NotImplementedError()
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
