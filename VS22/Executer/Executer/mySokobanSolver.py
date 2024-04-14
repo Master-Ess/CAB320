@@ -50,6 +50,9 @@ def my_team():
 
 
 def taboo_cells(warehouse):
+    
+    #KENZIE HAIGH
+
     '''  
     Identify the taboo cells of a warehouse. A "taboo cell" is by definition
     a cell inside a warehouse such that whenever a box get pushed on such 
@@ -297,6 +300,9 @@ def taboo_cells(warehouse):
 
 
 class SokobanPuzzle(search.Problem):
+
+    
+
     '''
     An instance of the class 'SokobanPuzzle' represents a Sokoban puzzle.
     An instance contains information about the walls, the targets, the boxes
@@ -332,6 +338,9 @@ class SokobanPuzzle(search.Problem):
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 def check_elem_action_seq(warehouse, action_seq):
+
+    #KENZIE HAIGH    
+
     '''
     
     Determine if the sequence of actions listed in 'action_seq' is legal or not.
@@ -356,6 +365,18 @@ def check_elem_action_seq(warehouse, action_seq):
     '''
     
     ##         "INSERT YOUR CODE HERE"
+
+    worker_x = warehouse.worker[0]
+    worker_y = warehouse.worker[1]
+    
+    directions = {
+        'Left': (-1, 0),
+        'Right': (1, 0),
+        'Up': (0, -1),
+        'Down': (0, 1),
+    }
+
+    print('EOF')
     
     raise NotImplementedError()
 
