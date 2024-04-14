@@ -107,7 +107,11 @@ def taboo_cells(warehouse):
                             break
         return (False, None, None)
 
-    taboo_cell_list = []
+    taboo_corner_cell_list = []
+    taboo_straight_cell_list = []
+    corner_cell_list = []
+    
+    #doesnt account for T or X -- need to fix
 
     #rule 1
     for cell in warehouse.walls:
@@ -117,16 +121,116 @@ def taboo_cells(warehouse):
             dx = resp[2][0][0]
             dy = resp[2][1][1]
             taboo_cell = (cell[0] + dx, cell[1] + dy)
+            corner_cell_list.append((cell, resp[1]))
+            
+            #add quick loop here to check for Ts and Xs
+
             for obj in warehouse.targets:
                     if taboo_cell == obj:
                         safe = True
                         break
                     
             if safe == False:
-                   taboo_cell_list.append(taboo_cell)
+                   taboo_corner_cell_list.append(taboo_cell)
                 
-            
+    #should have found all corner cells by now            
 
+    #rule 2
+
+    #doesnt account for T or X -- need to fix
+    
+    #array_builder
+    corner_neighbour = []
+    
+    for entry in corner_cell_list:
+        corner_neighbour.append((entry[0], entry[1][0])) 
+        corner_neighbour.append((entry[0], entry[1][1])) 
+    
+    #executer
+    for each in corner_neighbour:
+        OBJ_side_1 = False
+        OBJ_side_2 = False
+        
+        end_loc = None
+        
+        dx = each[0][0] - each[1][0]
+        dy = each[0][1] - each[1][1]
+        
+        obj_cell_1_start = (new_cell[1][0] + dy, new_cell[1][1] + dx)
+        obj_cell_2_start = (new_cell[1][0] - dy, new_cell[1][1] - dx)
+        
+        temp_list_1 = []
+        temp_list_2 = []
+        
+        #check eitherside of the corner half
+        for target in warehouse.targets:
+            
+            #if either has an OBJ mark that side as OBJ
+            if target == obj_cell_1_start:
+                OBJ_side_1 = True
+            if target == obj_cell_2_start:
+                OBJ_side_2 = True
+            #else OBJ false status current    
+        
+        END = False
+        new_cell = each[1]
+        while not END: 
+      
+        #move to next cell
+            new_cell = (new_cell[0] + dx, new_cell[1] + dy)
+            
+            obj_cell_1 = (new_cell[1][0] + dy, new_cell[1][1] + dx)
+            obj_cell_2 = (new_cell[1][0] - dy, new_cell[1][1] - dx)
+        
+        #check cell exists
+            found_cell = False
+            for cell in warehouse.cells:
+                if cell == new_cell:
+                    found_cell = True
+                    
+                    #check eitherside of it for an obj
+                    for target in warehouse.targets:
+                                #if either has an OBJ mark that side as OBJ
+                         if target == obj_cell_1:
+                               OBJ_side_1 = True
+                         if target == obj_cell_2:
+                               OBJ_side_2 = True
+                                #if true mark the correct OBJ
+                    #check if cell is a corner half
+                    for corner in corner_neighbour[1]:
+                        
+                        if corner == new_cell:
+                                end_loc = new_cell    
+                                END = True
+                                #return side lists for sides that dont have OBJ == True
+                        
+                    #add cells to temp_list
+                    if END != True:
+                        temp_list_1.append(obj_cell_1)
+                        temp_list_2.append(obj_cell_2)
+                        
+            if found_cell == False:
+                END = True 
+
+        if OBJ_side_1 != True:
+            taboo_straight_cell_list.append(temp_list_1)
+            
+        if OBJ_side_2 != True:
+            taboo_straight_cell_list.apped(temp_list_2)
+            
+            #if cell doesnt exist remove "each" from corner_neighbour
+            #return side lists for sides that dont have OBJ == True
+
+        #remove them from the list   both start and end corner if possible
+
+
+
+             
+        
+    
+
+        
+    
     print('EOF')
 
     raise NotImplementedError()
