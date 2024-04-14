@@ -89,11 +89,11 @@ def taboo_cells(warehouse):
 
     
     def is_corner(warehouse, loc): #i missed up indentation
-        for each in corner_patterns:
-                search_pattern = ((loc[0] + each[0][0],loc[1] + each[0][1]), (loc[0] + each[1][0],loc[1] + each[1][1]))
+        for pattern in corner_patterns:
+                search_pattern_output = ((loc[0] + pattern[0][0],loc[1] + pattern[0][1]), (loc[0] + pattern[1][0],loc[1] + pattern[1][1]))
                 applicable_walls = 0
             
-                for search_loc in search_pattern:
+                for search_loc in search_pattern_output:
                     for wall_loc in warehouse.walls:
                     
                         if search_loc == wall_loc:
@@ -102,7 +102,7 @@ def taboo_cells(warehouse):
                             #do checks for obj here
                         
                             if applicable_walls == 2:
-                                return (True, search_pattern, each)
+                                return (True, search_pattern_output, pattern)
                         
                             break
         return (False, None, None)
@@ -123,7 +123,31 @@ def taboo_cells(warehouse):
             taboo_cell = (cell[0] + dx, cell[1] + dy)
             corner_cell_list.append((cell, resp[1]))
             
-            #add quick loop here to check for Ts and Xs
+            #add loop here to check for Ts and Xs
+
+            # T check
+            neg_x_cell = (cell[0] + resp[2][0][0],cell[1] + resp[2][0][1])
+            neg_y_cell = (cell[0] + resp[2][1][0],cell[1] + resp[2][1][1])
+            neg_x = False
+            neg_y = False
+            
+            for wall in warehouse.walls:
+                if wall == neg_x_cell:
+                    neg_x = True
+                if wall == neg_y_cell:
+                    neg_y = True
+                    
+            if neg_x and neg_y:
+                #x
+                pass
+            elif neg_x:
+                 #T
+                 pass
+            elif neg_y:
+                #T
+                pass 
+
+            #end T X check
 
             for obj in warehouse.targets:
                     if taboo_cell == obj:
@@ -137,7 +161,7 @@ def taboo_cells(warehouse):
 
     #rule 2
 
-    #doesnt account for T or X -- need to fix
+    #will account for T and X when the corner checker does
     
     #array_builder
     corner_neighbour = []
@@ -156,8 +180,8 @@ def taboo_cells(warehouse):
         dx = each[0][0] - each[1][0]
         dy = each[0][1] - each[1][1]
         
-        obj_cell_1_start = (new_cell[1][0] + dy, new_cell[1][1] + dx)
-        obj_cell_2_start = (new_cell[1][0] - dy, new_cell[1][1] - dx)
+        obj_cell_1_start = (each[1][0] + dy, each[1][1] + dx)
+        obj_cell_2_start = (each[1][0] - dy, each[1][1] - dx)
         
         temp_list_1 = []
         temp_list_2 = []
@@ -179,12 +203,12 @@ def taboo_cells(warehouse):
         #move to next cell
             new_cell = (new_cell[0] + dx, new_cell[1] + dy)
             
-            obj_cell_1 = (new_cell[1][0] + dy, new_cell[1][1] + dx)
-            obj_cell_2 = (new_cell[1][0] - dy, new_cell[1][1] - dx)
+            obj_cell_1 = (new_cell[1] + dy, new_cell[1] + dx)
+            obj_cell_2 = (new_cell[1] - dy, new_cell[1] - dx)
         
         #check cell exists
             found_cell = False
-            for cell in warehouse.cells:
+            for cell in warehouse.walls:
                 if cell == new_cell:
                     found_cell = True
                     
@@ -216,12 +240,19 @@ def taboo_cells(warehouse):
             taboo_straight_cell_list.append(temp_list_1)
             
         if OBJ_side_2 != True:
-            taboo_straight_cell_list.apped(temp_list_2)
+            taboo_straight_cell_list.append(temp_list_2)
             
             #if cell doesnt exist remove "each" from corner_neighbour
             #return side lists for sides that dont have OBJ == True
 
-        #remove them from the list   both start and end corner if possible
+        #remove the found corner from list
+        if end_loc != None:
+            for each in corner_neighbour:
+                 if each[1] == end_loc:
+                     corner_neighbour.remove(each) 
+                     
+        
+        
 
 
 
