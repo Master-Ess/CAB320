@@ -79,6 +79,9 @@ def taboo_cells(warehouse):
     '''
     ##         "INSERT YOUR CODE HERE"
 
+    #possibly should be rewritten using if x in y instead of the for loops to find stuff
+
+
     wall_patterns = [((1,0),(-1,0)), #hoz
                     ((0,1),(0,-1))  #vert
                      ]
@@ -375,6 +378,76 @@ def check_elem_action_seq(warehouse, action_seq):
         'Up': (0, -1),
         'Down': (0, 1),
     }
+    
+    box_locations = (warehouse.boxes).copy() #fucking pointers
+
+    for action in action_seq:
+        
+        movement = directions[action]
+        dx = movement[0]
+        dy = movement[1]
+        
+        worker_x_move = worker_x + dx
+        worker_y_move = worker_y + dy
+        
+        box_x_move = worker_x + (dx * 2)
+        box_y_move = worker_y + (dy * 2)
+        
+        
+
+        #check if move makes it go into a wall
+        if (worker_x_move, worker_y_move) in warehouse.walls:
+            return "Impossible"
+        
+        #check if moves a box
+        elif (worker_x_move, worker_y_move) in box_locations:
+            
+            #check that the box move doesnt move it into a wall
+            if (box_x_move, box_y_move) in warehouse.walls:
+                return "Impossible"
+            else:
+                box_locations.remove((worker_x_move,worker_y_move))
+                box_locations.append((box_x_move   ,box_y_move   ))
+                
+        #if code reaches this point we should be good to update locations
+        
+        worker_x = worker_x_move
+        worker_y = worker_y_move
+        
+    #convert it back into the warehouse thingy
+    
+    #grabbed from sokoban __str__
+
+    X,Y = zip(*warehouse.walls) # pythonic version of the above
+    x_size, y_size = 1+max(X), 1+max(Y)
+        
+    vis = [[" "] * x_size for y in range(y_size)]
+        # can't use  vis = [" " * x_size for y ...]
+        # because we want to change the characters later
+    for (x,y) in warehouse.walls:
+            vis[y][x] = "#"
+    for (x,y) in warehouse.targets:
+            vis[y][x] = "."
+        # if worker is on a target display a "!", otherwise a "@"
+        # exploit the fact that Targets has been already processed
+    if vis[worker_y][worker_x] == ".": # Note y is worker[1], x is worker[0] #WHY THE HELL IS IT BACK TO FRONT!!!!!!
+            vis[worker_y][worker_x] = "!"
+    else:
+            vis[worker_y][worker_x] = "@"
+        # if a box is on a target display a "*"
+        # exploit the fact that Targets has been already processed
+    for (x,y) in box_locations:                                     #was self.boxes but we have a boxes copy so we use that
+        if vis[y][x] == ".": # if on target
+                vis[y][x] = "*"
+        else:
+                vis[y][x] = "$"
+    warehouse_obj =  "\n".join(["".join(line) for line in vis])   #was return 
+    
+    return warehouse_obj #need to test that this doesnt need a cast
+        
+        
+        
+        
 
     print('EOF')
     
