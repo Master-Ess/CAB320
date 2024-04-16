@@ -29,6 +29,7 @@ Last modified by 2022-03-27  by f.maire@qut.edu.au
 # You have to make sure that your code works with 
 # the files provided (search.py and sokoban.py) as your code will be tested 
 # with these files
+from ast import Num
 from itertools import filterfalse
 import search 
 import sokoban
@@ -120,67 +121,18 @@ def taboo_cells(warehouse):
         x_size, y_size = 1+max(X), 1+max(Y)
         
         vis = [[" "] * x_size for y in range(y_size)]
-
+        
+        for (x,y) in taboo_straights:
+            vis[y][x] = "X" 
+   
+        for (x,y) in taboo_corners:
+            vis[y][x] = "X"     #kinda not needed -> the taboo_straights overwrite it but same result at the end lol
+            
         for (x,y) in warehouse.walls:
             vis[y][x] = "#"
-            
-        for (x,y) in taboo_corners:
-            vis[y][x] = "X" 
-            
-        for (x,y) in taboo_straights:
-            vis[y][x] = "Y" 
 
         return "\n".join(["".join(line) for line in vis])
     
-    def solve_rule_2(warehouse):
-            # Variables to hold corner positions and taboo cells
-        corners = set()
-        taboo_straight_cell_list = set()
-
-        # Identify corners
-        for x, y in warehouse.walls:
-            if is_corner(warehouse, (x, y))[0]:
-                corners.add((x, y))
-
-        # Check each corner for possible taboo line stretches
-        for corner in corners:
-            # Check in each direction from corner
-            directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]  # right, left, up, down
-            for dx, dy in directions:
-                cells_between_corners = []
-                has_target = False
-                target_positions = []
-                current_x, current_y = corner
-                while True:
-                    current_x += dx
-                    current_y += dy
-                    # Check if next position is another corner or if it goes out of wall boundaries
-                    if (current_x, current_y) not in warehouse.walls or (current_x, current_y) in corners:
-                        break
-                    # Check if there's a target in this stretch
-                    if (current_x, current_y) in warehouse.targets:
-                        has_target = True
-                        target_positions.append((current_x, current_y))
-                    cells_between_corners.append((current_x, current_y))
-
-                # If no targets were found in this wall stretch, mark adjacent cells as taboo
-                if has_target:
-                    for wall_x, wall_y in cells_between_corners:
-                        # Determine adjacent positions next to the wall
-                        adjacent_positions = [(wall_x + dx, wall_y + dy), (wall_x - dx, wall_y - dy)]
-                        for adj_x, adj_y in adjacent_positions:
-                            # Mark as taboo if it's not a target, not a wall, not a corner
-                            if (adj_x, adj_y) not in target_positions and (adj_x, adj_y) not in warehouse.walls and (adj_x, adj_y) not in corners:
-                                taboo_straight_cell_list.add((adj_x, adj_y))
-                else:
-                    # If no targets, all adjacent cells are taboo
-                    for wall_x, wall_y in cells_between_corners:
-                        adjacent_positions = [(wall_x + dx, wall_y + dy), (wall_x - dx, wall_y - dy)]
-                        for adj_x, adj_y in adjacent_positions:
-                            if (adj_x, adj_y) not in warehouse.walls and (adj_x, adj_y) not in corners:
-                                taboo_straight_cell_list.add((adj_x, adj_y))
-
-        return list(taboo_straight_cell_list)
     
     def check_inside_warehouse(inlist):
         temp = []
@@ -306,90 +258,67 @@ def taboo_cells(warehouse):
     #remove duplicates - should be any but just to be safe
     corner_neighbour = list(dict.fromkeys(corner_neighbour))    
 
-
     #executer
-    for each in corner_neighbour:
-        OBJ_side_1 = False
-        OBJ_side_2 = False
+    for corner_nub in corner_neighbour:
+        dx = corner_nub[1][0] - corner_nub[0][0] 
+        dy = corner_nub[1][1] - corner_nub[0][1]
         
-        end_loc = None
+        cur_loc = corner_nub[1]
+        side_1_loc = (cur_loc[0] + dy, cur_loc[1] + dx)
+        side_2_loc = (cur_loc[0] - dy, cur_loc[1] - dx)
         
-        dx = each[0][0] - each[1][0]
-        dy = each[0][1] - each[1][1]
+        side_1_state = False
+        side_2_state = False
         
-        obj_cell_1_start = (each[1][0] + dy, each[1][1] + dx)
-        obj_cell_2_start = (each[1][0] - dy, each[1][1] - dx)
-        
-        temp_list_1 = []
-        temp_list_2 = []
-        
-        #check eitherside of the corner half
-        for target in warehouse.targets:
+        side_1 = []
+        side_2 = []
+    
+        if side_1_loc in warehouse.targets:
+            side_1_state = True
+        if side_2_loc in warehouse.targets:
+            side_2_state = True    
             
-            #if either has an OBJ mark that side as OBJ
-            if target == obj_cell_1_start:
-                OBJ_side_1 = True
-            if target == obj_cell_2_start:
-                OBJ_side_2 = True
-            #else OBJ false status current    
+        eft = True    
+        counter = 0
+        for nub_loc in corner_neighbour:
+           if nub_loc[1] == cur_loc or nub_loc[0] == cur_loc :
+               counter = counter + 1
+               
+                 
         
-        END = False
-        new_cell = each[1]
-        while not END: 
-      
-        #move to next cell
-            new_cell = (new_cell[0] + dx, new_cell[1] + dy)
+        if counter > 1:
+            eft = False
             
-            obj_cell_1 = (new_cell[1] + dy, new_cell[1] + dx)
-            obj_cell_2 = (new_cell[1] - dy, new_cell[1] - dx)
-        
-        #check cell exists
-            found_cell = False
-            for cell in warehouse.walls:
-                if cell == new_cell:
-                    found_cell = True
+        while eft:
+            cur_loc = (cur_loc[0] + dx, cur_loc[1] + dy)
+            side_1_loc = (side_1_loc[0] + dx, side_1_loc[1] + dy)
+            side_2_loc = (side_2_loc[0] + dx, side_2_loc[1] + dy)
+            
+            if side_1_loc in warehouse.targets:
+                side_1_state = True
+            if side_2_loc in warehouse.targets:
+                side_2_state = True  
+                
+            for nub_loc in corner_neighbour:
+                if nub_loc[1] == cur_loc:
+                    eft = False
+                    break
+                
+            if (cur_loc[0] + dx, cur_loc[1] + dy) not in warehouse.walls:
+                eft = False
                     
-                    #check eitherside of it for an obj
-                    for target in warehouse.targets:
-                                #if either has an OBJ mark that side as OBJ
-                         if target == obj_cell_1:
-                               OBJ_side_1 = True
-                         if target == obj_cell_2:
-                               OBJ_side_2 = True
-                                #if true mark the correct OBJ
-                    #check if cell is a corner half
-                    for corner in corner_neighbour[1]:
-                        if corner == new_cell:
-                                end_loc = new_cell    
-                                END = True
-                                #return side lists for sides that dont have OBJ == True
-                        
-                    #add cells to temp_list
-                    if END != True:
-                        temp_list_1.append(obj_cell_1)
-                        temp_list_2.append(obj_cell_2)
-                        
-            if found_cell == False:
-                END = True 
-
-        if OBJ_side_1 != True:
-            taboo_straight_cell_list.extend(temp_list_1)
+            side_1.append(side_1_loc)
+            side_2.append(side_2_loc)
+        
+        if not side_1_state:                                        #and not ((cur_loc[0] + dx) + dy, (cur_loc[1] + dy) + dx) in warehouse.walls:
+            taboo_straight_cell_list.extend(side_1)
+        if not side_2_state:                                        #and not ((cur_loc[0] + dx) - dy, (cur_loc[1] + dy) - dx) in warehouse.walls:
+            taboo_straight_cell_list.extend(side_2)
             
-        if OBJ_side_2 != True:
-            taboo_straight_cell_list.extend(temp_list_2)
-            
-            #if cell doesnt exist remove "each" from corner_neighbour
-            #return side lists for sides that dont have OBJ == True
-
-        #remove the found corner from list
-        if end_loc != None:
-            for each in corner_neighbour:
-                 if each[1] == end_loc:
-                     corner_neighbour.remove(each) 
+                     
+    #####################################################################################
                      
     #remove dupliates from taboo_straight_cell_list
-    
-    #taboo_straight_cell_list = solve_rule_2(warehouse)
 
     taboo_straight_cell_list = list(dict.fromkeys(taboo_straight_cell_list))        
     
