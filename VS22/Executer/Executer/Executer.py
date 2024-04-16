@@ -5,7 +5,7 @@ import sanity_check
 import search
 import sokoban
 
-dyn_file_path = "./warehouses/warehouse_03.txt"
+dyn_file_path = "./warehouses/warehouse_01.txt"
 
 WH = sokoban.Warehouse
 

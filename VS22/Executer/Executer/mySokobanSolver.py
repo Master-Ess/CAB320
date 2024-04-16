@@ -48,7 +48,6 @@ def my_team():
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-
 def taboo_cells(warehouse):
     
     #KENZIE HAIGH
@@ -81,6 +80,8 @@ def taboo_cells(warehouse):
 
     #possibly should be rewritten using if x in y instead of the for loops to find stuff
 
+    #need to add a function that will check if a taboo cell is unreachable anyway --> see teams
+
 
     wall_patterns = [((1,0),(-1,0)), #hoz
                     ((0,1),(0,-1))  #vert
@@ -112,6 +113,24 @@ def taboo_cells(warehouse):
                         
                             break
         return (False, None, None)
+    
+    def taboo_warehouse_display(warehouse, taboo_corners, taboo_straights):
+
+        X,Y = zip(*warehouse.walls) # pythonic version of the above
+        x_size, y_size = 1+max(X), 1+max(Y)
+        
+        vis = [[" "] * x_size for y in range(y_size)]
+
+        for (x,y) in warehouse.walls:
+            vis[y][x] = "#"
+            
+        for (x,y) in taboo_corners:
+            vis[y][x] = "X" 
+            
+        for (x,y) in taboo_straights:
+            vis[y][x] = "Y" 
+
+        return "\n".join(["".join(line) for line in vis])
 
     taboo_corner_cell_list = []
     taboo_straight_cell_list = []
@@ -280,10 +299,10 @@ def taboo_cells(warehouse):
                 END = True 
 
         if OBJ_side_1 != True:
-            taboo_straight_cell_list.append(temp_list_1)
+            taboo_straight_cell_list.extend(temp_list_1)
             
         if OBJ_side_2 != True:
-            taboo_straight_cell_list.append(temp_list_2)
+            taboo_straight_cell_list.extend(temp_list_2)
             
             #if cell doesnt exist remove "each" from corner_neighbour
             #return side lists for sides that dont have OBJ == True
@@ -294,7 +313,31 @@ def taboo_cells(warehouse):
                  if each[1] == end_loc:
                      corner_neighbour.remove(each) 
                      
+    #remove dupliates from taboo_straight_cell_list
+    
+    taboo_straight_cell_list = list(dict.fromkeys(taboo_straight_cell_list))        
+    
+    #remove out of bounds taboo cells
 
+    #remove all occurances with negitive numbers
+    temp = []
+    
+    X,Y = zip(*warehouse.walls) # stolen from the __str__
+    x_size, y_size = 1+max(X), 1+max(Y)
+    
+    for each in taboo_straight_cell_list:
+        if (each[0] > 0) and (each[0] < x_size) and (each[1] > 0) and (each[1] < y_size):
+             temp.append(each)
+             
+    taboo_straight_cell_list = temp
+
+    #finishing
+    
+    returnable_value = taboo_warehouse_display(warehouse, taboo_corner_cell_list, taboo_straight_cell_list)
+    
+    print(returnable_value)
+    
+    return returnable_value
     print('EOF')
 
     #raise NotImplementedError()
