@@ -80,7 +80,7 @@ def taboo_cells(warehouse):
 
     #possibly should be rewritten using if x in y instead of the for loops to find stuff
 
-    #need to add a function that will check if a taboo cell is unreachable anyway --> see teams
+    #need to add a function that will check if a taboo cell is unreachable anyway --> DONE!
 
 
     wall_patterns = [((1,0),(-1,0)), #hoz
@@ -131,6 +131,81 @@ def taboo_cells(warehouse):
             vis[y][x] = "Y" 
 
         return "\n".join(["".join(line) for line in vis])
+    
+    def solve_rule_2(warehouse):
+            # Variables to hold corner positions and taboo cells
+        corners = set()
+        taboo_straight_cell_list = set()
+
+        # Identify corners
+        for x, y in warehouse.walls:
+            if is_corner(warehouse, (x, y))[0]:
+                corners.add((x, y))
+
+        # Check each corner for possible taboo line stretches
+        for corner in corners:
+            # Check in each direction from corner
+            directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]  # right, left, up, down
+            for dx, dy in directions:
+                cells_between_corners = []
+                has_target = False
+                target_positions = []
+                current_x, current_y = corner
+                while True:
+                    current_x += dx
+                    current_y += dy
+                    # Check if next position is another corner or if it goes out of wall boundaries
+                    if (current_x, current_y) not in warehouse.walls or (current_x, current_y) in corners:
+                        break
+                    # Check if there's a target in this stretch
+                    if (current_x, current_y) in warehouse.targets:
+                        has_target = True
+                        target_positions.append((current_x, current_y))
+                    cells_between_corners.append((current_x, current_y))
+
+                # If no targets were found in this wall stretch, mark adjacent cells as taboo
+                if has_target:
+                    for wall_x, wall_y in cells_between_corners:
+                        # Determine adjacent positions next to the wall
+                        adjacent_positions = [(wall_x + dx, wall_y + dy), (wall_x - dx, wall_y - dy)]
+                        for adj_x, adj_y in adjacent_positions:
+                            # Mark as taboo if it's not a target, not a wall, not a corner
+                            if (adj_x, adj_y) not in target_positions and (adj_x, adj_y) not in warehouse.walls and (adj_x, adj_y) not in corners:
+                                taboo_straight_cell_list.add((adj_x, adj_y))
+                else:
+                    # If no targets, all adjacent cells are taboo
+                    for wall_x, wall_y in cells_between_corners:
+                        adjacent_positions = [(wall_x + dx, wall_y + dy), (wall_x - dx, wall_y - dy)]
+                        for adj_x, adj_y in adjacent_positions:
+                            if (adj_x, adj_y) not in warehouse.walls and (adj_x, adj_y) not in corners:
+                                taboo_straight_cell_list.add((adj_x, adj_y))
+
+        return list(taboo_straight_cell_list)
+    
+    def check_inside_warehouse(inlist):
+        temp = []
+    #outside of warehouse loop
+        for taboo_cell in inlist:
+            up = False
+            down = False
+            left = False
+            right = False
+            for wall in warehouse.walls:        #these might be mislabeled -> doesnt matter, all that matters is that all 4 are found
+                if taboo_cell[0] < wall[0] and wall[1] == taboo_cell[1]:
+                   right = True
+                elif taboo_cell[0] > wall[0] and wall[1] == taboo_cell[1]:
+                   left = True
+            
+                if taboo_cell[1] < wall[1] and wall[0] == taboo_cell[0]:
+                   up = True
+                elif taboo_cell[1] > wall[1] and wall[0] == taboo_cell[0]:
+                   down = True
+               
+            if up and down and left and right:
+                 temp.append(taboo_cell)
+             
+        return temp       
+    ##############################################################################
 
     taboo_corner_cell_list = []
     taboo_straight_cell_list = []
@@ -315,6 +390,8 @@ def taboo_cells(warehouse):
                      
     #remove dupliates from taboo_straight_cell_list
     
+    taboo_straight_cell_list = solve_rule_2(warehouse)
+
     taboo_straight_cell_list = list(dict.fromkeys(taboo_straight_cell_list))        
     
     #remove out of bounds taboo cells
@@ -330,7 +407,11 @@ def taboo_cells(warehouse):
              temp.append(each)
              
     taboo_straight_cell_list = temp
-
+    
+   
+             
+    taboo_corner_cell_list = check_inside_warehouse(taboo_corner_cell_list)        
+    taboo_straight_cell_list = check_inside_warehouse(taboo_straight_cell_list)  
     #finishing
     
     returnable_value = taboo_warehouse_display(warehouse, taboo_corner_cell_list, taboo_straight_cell_list)
@@ -448,6 +529,8 @@ def check_elem_action_seq(warehouse, action_seq):
             #check that the box move doesnt move it into a wall
             if (box_x_move, box_y_move) in warehouse.walls:
                 return "Impossible"
+            if (box_x_move, box_y_move) in box_locations:       #this is implimented because i assume you cant push two boxes at the same time
+                return "Impossible" 
             else:
                 box_locations.remove((worker_x_move,worker_y_move))
                 box_locations.append((box_x_move   ,box_y_move   ))
