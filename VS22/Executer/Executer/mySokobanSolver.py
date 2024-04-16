@@ -359,7 +359,6 @@ def taboo_cells(warehouse):
                                 #if true mark the correct OBJ
                     #check if cell is a corner half
                     for corner in corner_neighbour[1]:
-                        
                         if corner == new_cell:
                                 end_loc = new_cell    
                                 END = True
@@ -390,7 +389,7 @@ def taboo_cells(warehouse):
                      
     #remove dupliates from taboo_straight_cell_list
     
-    taboo_straight_cell_list = solve_rule_2(warehouse)
+    #taboo_straight_cell_list = solve_rule_2(warehouse)
 
     taboo_straight_cell_list = list(dict.fromkeys(taboo_straight_cell_list))        
     
