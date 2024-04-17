@@ -31,8 +31,12 @@ Last modified by 2022-03-27  by f.maire@qut.edu.au
 # with these files
 from ast import Num
 from itertools import filterfalse
+from networkx import center
+
+from pyparsing import col
 import search 
 import sokoban
+from symbol import break_stmt
 
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -115,7 +119,7 @@ def taboo_cells(warehouse):
                             break
         return (False, None, None)
     
-    def taboo_warehouse_display(warehouse, taboo_corners, taboo_straights):
+    def taboo_warehouse_display(warehouse, taboo_corners, taboo_straights, No_T, T):
 
         X,Y = zip(*warehouse.walls) # pythonic version of the above
         x_size, y_size = 1+max(X), 1+max(Y)
@@ -127,6 +131,12 @@ def taboo_cells(warehouse):
    
         for (x,y) in taboo_corners:
             vis[y][x] = "X"     #kinda not needed -> the taboo_straights overwrite it but same result at the end lol
+        
+        for (x,y) in No_T:
+            vis[y][x] = "X"             
+        
+        for (x,y) in T:
+            vis[y][x] = " "   
             
         for (x,y) in warehouse.walls:
             vis[y][x] = "#"
@@ -162,6 +172,7 @@ def taboo_cells(warehouse):
     taboo_corner_cell_list = []
     taboo_straight_cell_list = []
     corner_cell_list = []
+    T_cell_list = []
 
     ###############################################################################
 
@@ -186,8 +197,10 @@ def taboo_cells(warehouse):
             for wall in warehouse.walls:
                 if wall == neg_x_cell:
                     neg_x = True
+                    T_cell_list.append((cell,resp[1][0], resp[1][1], neg_x_cell))
                 if wall == neg_y_cell:
                     neg_y = True
+                    T_cell_list.append((cell, resp[1][0], resp[1][1], neg_y_cell))
                     
             #HANDLE T AND X CORNERS
                     
@@ -282,7 +295,7 @@ def taboo_cells(warehouse):
         counter = 0
         for nub_loc in corner_neighbour:
            if nub_loc[1] == cur_loc or nub_loc[0] == cur_loc :
-               counter = counter + 1
+               counter = counter  + 1
                
                  
         
@@ -293,6 +306,9 @@ def taboo_cells(warehouse):
             cur_loc = (cur_loc[0] + dx, cur_loc[1] + dy)
             side_1_loc = (side_1_loc[0] + dx, side_1_loc[1] + dy)
             side_2_loc = (side_2_loc[0] + dx, side_2_loc[1] + dy)
+            
+            if cur_loc not in warehouse.walls:
+                break 
             
             if side_1_loc in warehouse.targets:
                 side_1_state = True
@@ -315,7 +331,74 @@ def taboo_cells(warehouse):
         if not side_2_state:                                        #and not ((cur_loc[0] + dx) - dy, (cur_loc[1] + dy) - dx) in warehouse.walls:
             taboo_straight_cell_list.extend(side_2)
             
-                     
+    #############################################################
+
+    #T intersection fixer
+
+    obj_T = []
+    no_obj_T = []
+     
+    for T_payload in T_cell_list:
+        center_cell = T_payload[0]
+        colate = [(center_cell[0], center_cell[1] + 1),(center_cell[0], center_cell[1] - 1),(center_cell[0] + 1, center_cell[1]),(center_cell[0] - 1, center_cell[1])]
+
+        T_wall_group = []
+        
+        for each in colate:
+            if each not in T_payload:
+                 non_wall = each
+                 T_wall_group = [each]
+                 
+        dx = non_wall[0] - center_cell[0]
+        dy = non_wall[1] - center_cell[1]
+        
+        
+
+        OBJ = False
+        
+        if non_wall in warehouse.targets:
+            OBJ = True
+        
+        new_loc = center_cell
+        while True:
+            new_loc = new_loc[0] + dy, new_loc[1] + dx #should be only thing that gets changed for the other while true loop
+            
+            if new_loc not in warehouse.walls:
+                break
+            
+            test_cell = (new_loc[0] + dx, new_loc[1] + dy)
+            if test_cell in warehouse.targets:
+                OBJ = True
+               
+            corner_checker_cell = test_cell[0] + dy, test_cell[1] + dx  #this too     
+            if corner_checker_cell in warehouse.walls:
+                break
+            else:
+                T_wall_group.append(test_cell)
+
+        new_loc = center_cell
+        while True:
+            new_loc = new_loc[0] - dy, new_loc[1] - dx #should be only thing that gets changed for the other while true loop
+            
+            if new_loc not in warehouse.walls:
+                break
+            
+            test_cell = (new_loc[0] + dx, new_loc[1] + dy)
+            if test_cell in warehouse.targets:
+                OBJ = True
+               
+            corner_checker_cell = test_cell[0] - dy, test_cell[1] - dx  #this too     
+            if corner_checker_cell in warehouse.walls:
+                break
+            else:
+                T_wall_group.append(test_cell)
+        
+        if OBJ == False:
+            no_obj_T.extend(T_wall_group)
+        else:
+            obj_T.extend(T_wall_group)
+        
+        
     #####################################################################################
                      
     #remove dupliates from taboo_straight_cell_list
@@ -342,7 +425,7 @@ def taboo_cells(warehouse):
     taboo_straight_cell_list = check_inside_warehouse(taboo_straight_cell_list)  
     #finishing
     
-    returnable_value = taboo_warehouse_display(warehouse, taboo_corner_cell_list, taboo_straight_cell_list)
+    returnable_value = taboo_warehouse_display(warehouse, taboo_corner_cell_list, taboo_straight_cell_list, no_obj_T, obj_T)
     
     print(returnable_value)
     
@@ -497,7 +580,7 @@ def check_elem_action_seq(warehouse, action_seq):
                 vis[y][x] = "$"
     warehouse_obj =  "\n".join(["".join(line) for line in vis])   #was return 
     
-    print(warehouse_obj)
+    #print(warehouse_obj)
     
     return warehouse_obj #need to test that this doesnt need a cast
         
