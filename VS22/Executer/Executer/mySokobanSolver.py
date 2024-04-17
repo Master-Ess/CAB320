@@ -497,12 +497,10 @@ def check_elem_action_seq(warehouse, action_seq):
                 vis[y][x] = "$"
     warehouse_obj =  "\n".join(["".join(line) for line in vis])   #was return 
     
+    print(warehouse_obj)
+    
     return warehouse_obj #need to test that this doesnt need a cast
         
-        
-        
-        
-
     print('EOF')
     
     raise NotImplementedError()
