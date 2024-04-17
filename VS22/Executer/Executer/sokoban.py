@@ -110,7 +110,7 @@ class Warehouse:
         with open(filePath, 'r') as f:
             # 'lines' is a list of strings (rows of the puzzle) 
             lines = f.readlines() 
-        self.from_lines(self, lines)                        #added self????????????
+        self.from_lines(lines)                        #added self????????????
         # self.weights = None # all boxes are of weight 1
             
     def from_lines(self, lines):
@@ -140,7 +140,7 @@ class Warehouse:
         
         self.ncols = 1+max(line.rfind('#') for line in canonical_lines)
         self.nrows = len(canonical_lines)
-        self.extract_locations(self, canonical_lines)   #added self
+        self.extract_locations(canonical_lines)   #added self
         
         # Weights if provided are on the first line   
         try:

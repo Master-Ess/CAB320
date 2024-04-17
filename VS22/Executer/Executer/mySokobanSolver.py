@@ -31,13 +31,20 @@ Last modified by 2022-03-27  by f.maire@qut.edu.au
 # with these files
 from ast import Num
 from itertools import filterfalse
-from networkx import center
+#from networkx import center
 
-from pyparsing import col
+#from pyparsing import col
 import search 
 import sokoban
-from symbol import break_stmt
+#from symbol import break_stmt
 
+
+DIRECTIONS = {
+    'Up': (0, -1),
+    'Down': (0, 1),
+    'Left': (-1, 0),
+    'Right': (1, 0),
+}
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -126,20 +133,26 @@ def taboo_cells(warehouse):
         
         vis = [[" "] * x_size for y in range(y_size)]
         
-        for (x,y) in taboo_straights:
-            vis[y][x] = "X" 
-   
-        for (x,y) in taboo_corners:
-            vis[y][x] = "X"     #kinda not needed -> the taboo_straights overwrite it but same result at the end lol
-        
-        for (x,y) in No_T:
-            vis[y][x] = "X"             
-        
-        for (x,y) in T:
-            vis[y][x] = " "   
-            
-        for (x,y) in warehouse.walls:
-            vis[y][x] = "#"
+        def mark_taboo(x, y):
+            if 0 <= x < x_size and 0 <= y < y_size:
+                vis[y][x] = "X"
+
+        for (x, y) in taboo_straights:
+            mark_taboo(x, y)
+
+        for (x, y) in taboo_corners:
+            mark_taboo(x, y)
+
+        for (x, y) in No_T:
+            mark_taboo(x, y)
+
+        for (x, y) in T:
+            if 0 <= x < x_size and 0 <= y < y_size:
+                vis[y][x] = " "  # Make sure this does not mark 'X' over ' '
+
+        for (x, y) in warehouse.walls:
+            if 0 <= x < x_size and 0 <= y < y_size:
+                vis[y][x] = "#"
 
         return "\n".join(["".join(line) for line in vis])
     
@@ -436,6 +449,66 @@ def taboo_cells(warehouse):
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+def iterative_deepening_astar(problem, h):
+    """ Perform the iterative deepening A* search algorithm.
+    
+    Args:
+        problem: The SokobanPuzzle problem instance.
+        h: The heuristic function.
+    
+    Returns:
+        The solution node if a solution is found, None otherwise.
+    """
+    h = search.memoize(h, 'h')  # Memoizing the heuristic function to avoid recomputation
+    initial = search.Node(problem.initial)
+    bound = h(initial)
+
+    def search_depth(node, g, bound):
+        """ Helper function to perform depth-limited search.
+        
+        Args:
+            node: The current node.
+            g: The cost to reach the current node from the start node.
+            bound: The current cost bound in the IDA* search.
+        
+        Returns:
+            A tuple of the result node and the new cost bound.
+        """
+        f = g + h(node)
+        if f > bound:
+            return None, f  # Return None if bound is exceeded
+        if problem.goal_test(node.state):
+            return node, None  # Return the node if goal is met
+        min_bound = float('inf')
+        for succ in node.expand(problem):
+            # Correctly pass 'state2' as 'succ.state' to 'path_cost'
+            result, new_bound = search_depth(succ, g + problem.path_cost(g, node.state, succ.action, succ.state), bound)
+            if result is not None:
+                return result, None  # Solution found
+            if new_bound < min_bound:
+                min_bound = new_bound  # Store the minimum bound found
+        return None, min_bound
+
+    while True:
+        result, new_bound = search_depth(initial, 0, bound)
+        if result is not None:
+            return result  # Return the node containing the solution
+        if new_bound == float('inf'):
+            return None  # No solution
+        bound = new_bound  # Update the bound for the next iteration
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+def extract_taboo_cells(taboo_string):
+    taboo_cells = set()
+    lines = taboo_string.strip().split('\n')
+    for y, line in enumerate(lines):
+        for x, char in enumerate(line):
+            if char == 'X':
+                taboo_cells.add((x, y))
+    return taboo_cells
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 class SokobanPuzzle(search.Problem):
 
@@ -464,13 +537,96 @@ class SokobanPuzzle(search.Problem):
 
     
     def __init__(self, warehouse):
-        raise NotImplementedError()
+        self.initial = warehouse
+        self.goal = set(warehouse.targets)  # The goal state is all boxes on targets
+        # Calculate and store the taboo cells
+        taboo_string = taboo_cells(warehouse)
+        self.taboo_cells = extract_taboo_cells(taboo_string)  # Convert string to a set of tuples
+         # Assume the weights are stored in the warehouse object as a list of integers
+        self.weights = warehouse.weights
+
+
 
     def actions(self, state):
-        """
-        Return the list of actions that can be executed in the given state.
-        
-        """
+        """Generate legal actions without pushing boxes into taboo cells."""
+        result = []
+        for direction, (dx, dy) in DIRECTIONS.items():
+            nx, ny = state.worker[0] + dx, state.worker[1] + dy
+            if (nx, ny) not in state.walls:
+                if (nx, ny) in state.boxes:
+                    if (nx + dx, ny + dy) not in state.walls and (nx + dx, ny + dy) not in state.boxes:
+                        if (nx + dx, ny + dy) not in self.taboo_cells:  # Avoid pushing into taboo cells
+                            result.append(direction)
+                else:
+                    result.append(direction)
+        return result
+
+
+    def result(self, state, action):
+        dx, dy = DIRECTIONS[action]
+        new_worker = (state.worker[0] + dx, state.worker[1] + dy)
+        new_boxes = list(state.boxes)
+        if new_worker in new_boxes:
+            idx = new_boxes.index(new_worker)
+            old_pos = new_boxes[idx]
+            new_pos = (old_pos[0] + dx, old_pos[1] + dy)
+            new_boxes[idx] = new_pos
+            
+            # Update the weights dictionary
+            if old_pos in self.weights:
+                self.weights[new_pos] = self.weights.pop(old_pos)
+
+        new_state = state.copy(worker=new_worker, boxes=tuple(new_boxes))
+        return new_state
+
+    def goal_test(self, state):
+        return all(box in state.targets for box in state.boxes)
+
+    def path_cost(self, c, state1, action, state2):
+        worker_pos = state1.worker
+        move_pos = (worker_pos[0] + DIRECTIONS[action][0], worker_pos[1] + DIRECTIONS[action][1])
+
+        if move_pos in state1.boxes:
+            idx = state1.boxes.index(move_pos)
+            # Retrieve the weight using the index, ensuring weights are managed appropriately.
+            box_weight = self.weights[idx]
+            return c + 1 + box_weight  # Include box weight in cost if a box is moved.
+        else:
+            return c + 1  # Standard move cost if no box is moved.
+
+
+    def h(self, node):
+        """ Enhanced heuristic function that estimates cost from node.state to goal. """
+        state = node.state
+        worker_pos = state.worker
+        boxes = state.boxes
+        targets = state.targets
+
+
+        box_to_target_dist = 0
+        for box in boxes:
+            # Find the minimum distance from this box to any target
+            min_dist_to_target = min(abs(box[0] - t[0]) + abs(box[1] - t[1]) for t in targets)
+            box_to_target_dist += min_dist_to_target
+
+            # Add a penalty if the box is on a taboo cell and not on a target
+            if box in self.taboo_cells and box not in targets:
+                box_to_target_dist += 1000  # Adding a large penalty to discourage this configuration
+
+        # Calculate the minimum distance from the worker to any box
+        if boxes:
+            worker_to_box_dist = min(abs(worker_pos[0] - box[0]) + abs(worker_pos[1] - box[1]) for box in boxes)
+        else:
+            worker_to_box_dist = 0
+
+        # Weighting factors for each component of the heuristic
+        alpha = 1.0  # Weight for box-to-target distances
+        beta = 0.5   # Weight for worker-to-box distance
+
+        # Calculate the combined heuristic value
+        heuristic_value = alpha * box_to_target_dist + beta * worker_to_box_dist
+        return heuristic_value
+
         raise NotImplementedError
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -615,6 +771,25 @@ def solve_weighted_sokoban(warehouse):
 
     '''
     
+    # Create a problem instance
+    problem = SokobanPuzzle(warehouse)
+
+    # Call astar search from your search module
+    solution_node = iterative_deepening_astar(problem, problem.h)
+
+    if solution_node is None:
+        return 'Impossible', None
+
+    if hasattr(solution_node, 'solution'):
+        S = solution_node.solution()  # Assuming this extracts a list of action directions
+    else:
+        S = []
+
+    # Extract the total cost of the solution
+    C = getattr(solution_node, 'path_cost', 0)
+
+    return S, C
+
     raise NotImplementedError()
 
 

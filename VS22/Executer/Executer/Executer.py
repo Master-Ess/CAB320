@@ -1,20 +1,24 @@
-
 #import gui_sokoban
 import mySokobanSolver
 import sanity_check
 import search
 import sokoban
 
-dyn_file_path = "./warehouses/warehouse_custom.txt"
+dyn_file_path = "./warehouses/warehouse_test.txt"
+warehouse = sokoban.Warehouse()
+warehouse.load_warehouse(dyn_file_path)
 
-WH = sokoban.Warehouse
+# If you want to check taboo cells, you can uncomment the following:
+#taboo_result = mySokobanSolver.taboo_cells(warehouse)
+#print("Taboo cells:\n", taboo_result)
 
-WH.load_warehouse(WH, dyn_file_path)
+solution, cost = mySokobanSolver.solve_weighted_sokoban(warehouse)
 
-#wh1_modified soloution = ['Left', 'Up', 'Up', 'Up']
+if solution == 'Impossible':
+    print("No solution found for the puzzle.")
+else:
+    print("Solution found:")
+    print("Actions: ", solution)
+    print("Cost: ", cost)
 
-mySokobanSolver.taboo_cells(WH)
-
-#print(mySokobanSolver.check_elem_action_seq(WH, ['Right', 'Up', 'Up', 'Left', 'Left', 'Left', 'Up', 'Left', 'Down','Down','Up', 'Left', 'Left', 'Down', 'Down', 'Right', 'Right', 'Up', 'Up','Right', 'Right','Right', 'Right', 'Down','Down', 'Left', 'Up','Right','Up',]))
-
-print('EOC')
+print('End of Computation')
