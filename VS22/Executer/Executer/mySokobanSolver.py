@@ -196,13 +196,13 @@ def taboo_cells(warehouse):
                 cell_2 = (cell[0] + dx, cell[1] - dy) #neg y
                 cell_3 = (cell[0] - dx, cell[1] - dy) #both
                 
-                for obj in warehouse.targets:
+                if cell_1 not in warehouse.targets:
                      taboo_corner_cell_list.append(cell_1) 
                 
-                for obj in warehouse.targets:
+                if cell_2 not in warehouse.targets:
                      taboo_corner_cell_list.append(cell_2) 
                      
-                for obj in warehouse.targets:
+                if cell_3 not in warehouse.targets:
                      taboo_corner_cell_list.append(cell_3)   
                      
 
@@ -214,7 +214,7 @@ def taboo_cells(warehouse):
                  neg_x_taboo_cell = (cell[0] - dx, cell[1] + dy)
                  #check if in targetlost
 
-                 for obj in warehouse.targets:
+                 if neg_x_taboo_cell not in warehouse.targets:
                      taboo_corner_cell_list.append(neg_x_taboo_cell) 
                      
                  corner_cell_list.append((cell, (neg_x_cell, resp[1][1])))
@@ -223,7 +223,7 @@ def taboo_cells(warehouse):
             elif neg_y:#T
                 neg_y_taboo_cell = (cell[0] + dx, cell[1] - dy)
                 
-                for obj in warehouse.targets:
+                if neg_y_taboo_cell not in warehouse.targets:
                      taboo_corner_cell_list.append(neg_y_taboo_cell) 
                 
                 corner_cell_list.append((cell, (resp[1][0], neg_y_cell)))
