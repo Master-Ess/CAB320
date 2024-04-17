@@ -431,7 +431,7 @@ def check_elem_action_seq(warehouse, action_seq):
         'Down': (0, 1),
     }
     
-    box_locations = (warehouse.boxes).copy() #fucking pointers
+    box_locations = (warehouse.boxes).copy() #pointers
 
     for action in action_seq:
         
