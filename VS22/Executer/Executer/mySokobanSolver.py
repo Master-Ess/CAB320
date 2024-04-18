@@ -511,9 +511,7 @@ def extract_taboo_cells(taboo_string):
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 class SokobanPuzzle(search.Problem):
-
     
-
     '''
     An instance of the class 'SokobanPuzzle' represents a Sokoban puzzle.
     An instance contains information about the walls, the targets, the boxes
@@ -524,18 +522,6 @@ class SokobanPuzzle(search.Problem):
     
     '''
     
-    #
-    #         "INSERT YOUR CODE HERE"
-    #
-    #     Revisit the sliding puzzle and the pancake puzzle for inspiration!
-    #
-    #     Note that you will need to add several functions to 
-    #     complete this class. For example, a 'result' method is needed
-    #     to satisfy the interface of 'search.Problem'.
-    #
-    #     You are allowed (and encouraged) to use auxiliary functions and classes
-
-    
     def __init__(self, warehouse):
         self.initial = warehouse
         self.goal = set(warehouse.targets)  # The goal state is all boxes on targets
@@ -544,8 +530,6 @@ class SokobanPuzzle(search.Problem):
         self.taboo_cells = extract_taboo_cells(taboo_string)  # Convert string to a set of tuples
          # Assume the weights are stored in the warehouse object as a list of integers
         self.weights = warehouse.weights
-
-
 
     def actions(self, state):
         """Generate legal actions without pushing boxes into taboo cells."""
@@ -561,26 +545,22 @@ class SokobanPuzzle(search.Problem):
                     result.append(direction)
         return result
 
-
     def result(self, state, action):
+        """Return the resulting state from taking an action."""
         dx, dy = DIRECTIONS[action]
         new_worker = (state.worker[0] + dx, state.worker[1] + dy)
         new_boxes = list(state.boxes)
         if new_worker in new_boxes:
             idx = new_boxes.index(new_worker)
-            old_pos = new_boxes[idx]
-            new_pos = (old_pos[0] + dx, old_pos[1] + dy)
+            new_pos = (new_worker[0] + dx, new_worker[1] + dy)
             new_boxes[idx] = new_pos
-            
-            # Update the weights dictionary
-            if old_pos in self.weights:
-                self.weights[new_pos] = self.weights.pop(old_pos)
 
         new_state = state.copy(worker=new_worker, boxes=tuple(new_boxes))
         return new_state
 
     def goal_test(self, state):
-        return all(box in state.targets for box in state.boxes)
+        """Check if all targets are covered by boxes."""
+        return all(target in state.boxes for target in self.goal)
 
     def path_cost(self, c, state1, action, state2):
         worker_pos = state1.worker
@@ -588,12 +568,11 @@ class SokobanPuzzle(search.Problem):
 
         if move_pos in state1.boxes:
             idx = state1.boxes.index(move_pos)
-            # Retrieve the weight using the index, ensuring weights are managed appropriately.
+            # Retrieve the weight using the index, ensuring weights are managed appropriately
             box_weight = self.weights[idx]
-            return c + 1 + box_weight  # Include box weight in cost if a box is moved.
+            return c + 1 + box_weight  # Include box weight in cost if a box is moved
         else:
-            return c + 1  # Standard move cost if no box is moved.
-
+            return c + 1  # Standard move cost if no box is moved
 
     def h(self, node):
         """ Enhanced heuristic function that estimates cost from node.state to goal. """
@@ -602,8 +581,9 @@ class SokobanPuzzle(search.Problem):
         boxes = state.boxes
         targets = state.targets
 
-
         box_to_target_dist = 0
+        worker_to_box_dist = float('inf')
+
         for box in boxes:
             # Find the minimum distance from this box to any target
             min_dist_to_target = min(abs(box[0] - t[0]) + abs(box[1] - t[1]) for t in targets)
@@ -611,7 +591,15 @@ class SokobanPuzzle(search.Problem):
 
             # Add a penalty if the box is on a taboo cell and not on a target
             if box in self.taboo_cells and box not in targets:
-                box_to_target_dist += 1000  # Adding a large penalty to discourage this configuration
+                box_to_target_dist += 100  # Adding a large penalty to discourage this configuration
+
+            # Consider box-box blocking
+            for other_box in boxes:
+                if box != other_box:
+                    if box[0] == other_box[0] or box[1] == other_box[1]:
+                        box_to_target_dist += 10  # Small penalty for alignment
+
+            worker_to_box_dist = min(worker_to_box_dist, abs(state.worker[0] - box[0]) + abs(state.worker[1] - box[1]))
 
         # Calculate the minimum distance from the worker to any box
         if boxes:
@@ -619,9 +607,9 @@ class SokobanPuzzle(search.Problem):
         else:
             worker_to_box_dist = 0
 
-        # Weighting factors for each component of the heuristic
-        alpha = 1.0  # Weight for box-to-target distances
-        beta = 0.5   # Weight for worker-to-box distance
+        # Dynamic weighting based on game progression
+        alpha = 1.0
+        beta = 0.5 if len(boxes) > 2 else 1.0  # More weight on worker-box distance when fewer boxes left
 
         # Calculate the combined heuristic value
         heuristic_value = alpha * box_to_target_dist + beta * worker_to_box_dist
