@@ -5,12 +5,12 @@ import search
 import sokoban
 import time
 
-dyn_file_path = "./warehouses/warehouse_47.txt"
+dyn_file_path = "./warehouses/warehouse_test.txt"
 warehouse = sokoban.Warehouse()
 warehouse.load_warehouse(dyn_file_path)
 
 # If you want to check taboo cells, you can uncomment the following:
-#taboo_result = mySokobanSolver.taboo_cells(warehouse)
+taboo_result = mySokobanSolver.taboo_cells(warehouse)
 #print("Taboo cells:\n", taboo_result)
 
 tic = time.perf_counter()
