@@ -31,8 +31,6 @@ Last modified by 2022-03-27  by f.maire@qut.edu.au
 # with these files
 from ast import Num
 from itertools import filterfalse
-
-from sympy import Q
 #from networkx import center
 
 #from pyparsing import col
@@ -61,7 +59,6 @@ def my_team():
     #raise NotImplementedError()
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
 
 def taboo_cells(warehouse):
     
@@ -458,16 +455,8 @@ def taboo_cells(warehouse):
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-def iterative_deepening_astar(problem, h=None):
-    """ Implement the Iterative Deepening A* (IDA*) algorithm.
-    
-    Parameters:
-        problem: An instance of a search problem.
-        h: A heuristic function that estimates the cost from a node to the goal.
-        
-    Returns:
-        A tuple containing the solution and its path cost if found, otherwise ('Impossible', None).
-    """
+def iterative_deepening_astar(problem, h):
+    """ Implement the Iterative Deepening A* (IDA*) algorithm. """
     def recursive_search(node, g, bound):
         f = g + h(node)
         if f > bound:
@@ -487,6 +476,7 @@ def iterative_deepening_astar(problem, h=None):
     h = search.memoize(h or problem.h, 'h')
     initial = search.Node(problem.initial)
     bound = h(initial)
+
     while True:
         result, new_bound = recursive_search(initial, 0, bound)
         if result is not None:
@@ -494,9 +484,6 @@ def iterative_deepening_astar(problem, h=None):
         if new_bound == float('inf'):
             return 'Impossible', None
         bound = new_bound
-
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -527,83 +514,58 @@ class SokobanPuzzle(search.Problem):
         self.warehouse = warehouse
         self.targets = set(warehouse.targets)
         self.walls = set(warehouse.walls)
-        self._taboo_cells = None
+        self.taboo_cells = set(sokoban.find_2D_iterator(taboo_cells(self.warehouse).split("\n"), "X"))
+        self.min_distances = {}
+        self.update_distances(warehouse.boxes)  # Initially update distances for all starting boxes
 
-    def calculate_taboo_cells(self):
-        if self._taboo_cells is None:
-            self._taboo_cells = set(sokoban.find_2D_iterator(taboo_cells(self.warehouse).split("\n"), "X"))
-        return self._taboo_cells
+    def update_distances(self, boxes):
+        """ Update minimum distances for each box to the nearest target dynamically. """
+        for box in boxes:
+            if box not in self.min_distances:  # Calculate if not already calculated
+                self.min_distances[box] = min(abs(box[0] - target[0]) + abs(box[1] - target[1]) for target in self.targets)
 
     def actions(self, state):
         worker, boxes = state
-        moves = []
+        possible_actions = []
         for direction, (dx, dy) in DIRECTIONS.items():
             new_worker = (worker[0] + dx, worker[1] + dy)
-            new_box = (new_worker[0] + dx, new_worker[1] + dy)
-            if new_worker not in self.walls:
-                if new_worker in boxes:
-                    if new_box not in self.walls and new_box not in boxes and new_box not in self.calculate_taboo_cells():
-                        moves.append(direction)
-                else:
-                    moves.append(direction)
-        return moves
+            if new_worker not in self.walls and new_worker not in boxes:
+                possible_actions.append(direction)
+                continue
+            if new_worker in boxes:
+                new_box = (new_worker[0] + dx, new_worker[1] + dy)
+                if new_box not in self.walls and new_box not in boxes and new_box not in self.taboo_cells:
+                    possible_actions.append(direction)
+        return possible_actions
 
     def result(self, state, action):
         worker, boxes = state
         dx, dy = DIRECTIONS[action]
         new_worker = (worker[0] + dx, worker[1] + dy)
         new_boxes = tuple((bx + dx, by + dy) if (bx, by) == new_worker else (bx, by) for bx, by in boxes)
+        # Update distances for the new box positions after the action
+        self.update_distances(new_boxes)
         return (new_worker, new_boxes)
-
 
     def goal_test(self, state):
         _, boxes = state
         return all(box in self.targets for box in boxes)
 
     def path_cost(self, c, state1, action, state2):
-        worker, boxes1 = state1
+        _, boxes1 = state1
         _, boxes2 = state2
-
-        # Calculate the worker's new position based on the direction of the action
-        move_pos = (worker[0] + DIRECTIONS[action][0], worker[1] + DIRECTIONS[action][1])
-
-        # Check if the new position of the worker is where a box was located
-        if move_pos in boxes1:
-            idx = boxes1.index(move_pos)
-            # Retrieve the weight of the box that was moved
-            box_weight = self.warehouse.weights[idx]
-            return c + 1 + box_weight  # Include box weight in cost if a box is moved
-        else:
-            return c + 1  # Standard move cost if no box is moved
-
-
-    def closest_target(self, box, axis='x'):
-        """
-        Find the closest target for a box along a specified axis (either 'x' or 'y').
-        """
-        
-        if axis == 'x':
-            sorted_targets = sorted(self.targets, key=lambda t: (t[1] == box[1], abs(t[0] - box[0])))
-        else:
-            sorted_targets = sorted(self.targets, key=lambda t: (t[0] == box[0], abs(t[1] - box[1])))
-
-        for target in sorted_targets:
-            if axis == 'x' and target[1] == box[1]:
-                return {'distance': abs(target[0] - box[0]), 'target': target}
-            elif axis == 'y' and target[0] == box[0]:
-                return {'distance': abs(target[1] - box[1]), 'target': target}
-        return None
+        if boxes1 != boxes2:
+            move_pos = (state1[0][0] + DIRECTIONS[action][0], state1[0][1] + DIRECTIONS[action][1])
+            if move_pos in boxes1:
+                idx = boxes1.index(move_pos)
+                box_weight = self.warehouse.weights[idx]
+                return c + 1 + box_weight
+        return c + 1
 
     def h(self, node):
-        worker, boxes = node.state
-        total_distance = 0
-        for box in boxes:
-            # Find the minimum distance from this box to any target
-            min_distance = min(abs(box[0] - target[0]) + abs(box[1] - target[1]) for target in self.targets)
-            total_distance += min_distance
-        return total_distance
-
-
+        """ Use the dynamically updated minimum distances for heuristic calculation. """
+        _, boxes = node.state
+        return sum(self.min_distances[box] for box in boxes)
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -745,19 +707,15 @@ def solve_weighted_sokoban(warehouse):
             C is the total cost of the action sequence C
 
     '''
-    try:
-        puzzle = SokobanPuzzle(warehouse)
-        solution = search.astar_graph_search(puzzle, h=puzzle.h)
-        if solution is None:
-            return 'Impossible', None
-        actions = solution.solution()
-        cost = solution.path_cost
-        return actions, cost
-    except Exception as e:
-        print(f"Error encountered: {e}")
+
+    puzzle = SokobanPuzzle(warehouse)
+    solution = search.astar_graph_search(puzzle, h=puzzle.h)
+    if solution is None:
         return 'Impossible', None
+    actions = solution.solution()
+    cost = solution.path_cost
+    return actions, cost
 
     raise NotImplementedError()
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
