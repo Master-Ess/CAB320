@@ -341,7 +341,7 @@ def taboo_cells(warehouse):
             
         #fix for the enclosed corner problem
         side_1_cc_loc = side_1_loc[0] + dx, side_1_loc[1] + dy
-        side_2_cc_loc = side_1_loc[0] + dx, side_1_loc[1] + dy
+        side_2_cc_loc = side_2_loc[0] + dx, side_2_loc[1] + dy
         
         if not side_1_state and side_1_cc_loc in warehouse.walls:                                        #and not ((cur_loc[0] + dx) + dy, (cur_loc[1] + dy) + dx) in warehouse.walls:
             taboo_straight_cell_list.extend(side_1)
