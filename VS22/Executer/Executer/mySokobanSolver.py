@@ -58,6 +58,37 @@ def my_team():
     return [ (10755012, 'Kenzie', 'Haigh'), (1081425, 'Luke', 'Whitton'), (11132833, 'Emma', 'Wu') ]
     #raise NotImplementedError()
 
+
+def offset_to_direction(offset):
+    if offset == (0, 1):
+        return "Down"
+    elif offset == (0, -1):
+        return "Up"
+    elif offset == (1, 0):
+        return "Right"
+    elif offset == (-1, 0):
+        return "Left"
+    else:
+        raise ValueError("Unknown offset state")
+
+def direction_to_offset(direction):
+    if direction == "Down":
+        return (0, 1)
+    elif direction == "Up":
+        return (0, -1)
+    elif direction == "Right":
+        return (1, 0)
+    elif direction == "Left":
+        return (-1, 0)
+    else:
+        raise ValueError("Unknown direction")
+
+def add_tuples(tuple1, tuple2):
+    return (tuple1[0] + tuple2[0], tuple1[1] + tuple2[1])
+
+def manhattan_distance(a, b):
+    return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 def taboo_cells(warehouse):
@@ -455,17 +486,20 @@ def taboo_cells(warehouse):
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-def iterative_deepening_astar(problem, h):
-    """ Implement the Iterative Deepening A* (IDA*) algorithm. """
+def iterative_deepening_astar(problem, h, main_limit=100):
+    """ Implement the Iterative Deepening A* (IDA*) algorithm with improved heuristic, pruning, and a main limit. """
     def recursive_search(node, g, bound):
-        f = g + h(node)
-        if f > bound:
+        f = g + h(node)  # Calculate f = g + h
+        if f > bound:  # If the bound is exceeded, stop exploring this path
             return None, f
-        if problem.goal_test(node.state):
+        if problem.goal_test(node.state):  # If goal is reached, return the node
             return node, None
         min_bound = float('inf')
         for action in problem.actions(node.state):
             child = node.child_node(problem, action)
+            if child.state in seen:  # Prune repeated states to avoid cycles
+                continue
+            seen.add(child.state)
             result, new_bound = recursive_search(child, g + problem.path_cost(g, node.state, action, child.state), bound)
             if result is not None:
                 return result, None
@@ -473,17 +507,21 @@ def iterative_deepening_astar(problem, h):
                 min_bound = new_bound
         return None, min_bound
 
-    h = search.memoize(h or problem.h, 'h')
+    h = search.memoize(h or problem.h, 'h')  # Memoize the heuristic to avoid redundant calculations
     initial = search.Node(problem.initial)
     bound = h(initial)
+    seen = set()  # Use a set to track seen states to help with pruning
 
     while True:
         result, new_bound = recursive_search(initial, 0, bound)
-        if result is not None:
+        if result is not None:  # If a result was found, return the solution
             return result.solution(), result.path_cost
-        if new_bound == float('inf'):
+        if new_bound == float('inf') or new_bound >= main_limit:  # Check against the main limit
             return 'Impossible', None
         bound = new_bound
+        if bound >= main_limit:  # Do not increase the bound beyond the main limit
+            return 'Impossible', None
+
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -528,22 +566,20 @@ class SokobanPuzzle(search.Problem):
         worker, boxes = state
         possible_actions = []
         for direction, (dx, dy) in DIRECTIONS.items():
-            new_worker = (worker[0] + dx, worker[1] + dy)
+            new_worker = add_tuples(worker, (dx, dy))
             if new_worker not in self.walls and new_worker not in boxes:
                 possible_actions.append(direction)
-                continue
-            if new_worker in boxes:
-                new_box = (new_worker[0] + dx, new_worker[1] + dy)
+            elif new_worker in boxes:
+                new_box = add_tuples(new_worker, (dx, dy))
                 if new_box not in self.walls and new_box not in boxes and new_box not in self.taboo_cells:
                     possible_actions.append(direction)
         return possible_actions
 
     def result(self, state, action):
         worker, boxes = state
-        dx, dy = DIRECTIONS[action]
-        new_worker = (worker[0] + dx, worker[1] + dy)
-        new_boxes = tuple((bx + dx, by + dy) if (bx, by) == new_worker else (bx, by) for bx, by in boxes)
-        # Update distances for the new box positions after the action
+        offset = direction_to_offset(action)
+        new_worker = add_tuples(worker, offset)
+        new_boxes = tuple(add_tuples(b, offset) if b == new_worker else b for b in boxes)
         self.update_distances(new_boxes)
         return (new_worker, new_boxes)
 
@@ -563,9 +599,25 @@ class SokobanPuzzle(search.Problem):
         return c + 1
 
     def h(self, node):
-        """ Use the dynamically updated minimum distances for heuristic calculation. """
-        _, boxes = node.state
-        return sum(self.min_distances[box] for box in boxes)
+        """ Use a combined heuristic of the minimum Manhattan distances of boxes to their nearest targets and the worker to the nearest box. """
+        worker_pos, boxes = node.state  # Correctly unpack the worker position and boxes from the node's state
+        total_distance = 0
+    
+        # Calculate the sum of the minimum Manhattan distances from each box to the nearest target
+        for box in boxes:
+            min_dist = float('inf')
+            for target in self.targets:
+                min_dist = min(min_dist, manhattan_distance(box, target))
+            total_distance += min_dist
+    
+        # Calculate the minimum Manhattan distance from the worker to the nearest box
+        if boxes:  # Ensure there are boxes to avoid an empty sequence error
+            nearest_box_distance = min(manhattan_distance(worker_pos, box) for box in boxes)
+        else:
+            nearest_box_distance = 0  # No boxes to calculate distance to
+
+        # Return the combined heuristic value
+        return total_distance + nearest_box_distance
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
