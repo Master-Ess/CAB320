@@ -61,8 +61,15 @@ def my_team():
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 def taboo_cells(warehouse):
-    
     #KENZIE HAIGH
+
+    #receives:  a warehouse class
+    #
+    #does:      finds the taboo corners, straights and T sections 
+    #
+    #returns    a string represenation of the warehouse with only the walls and the taboo cells marked
+    
+    
 
     '''  
     Identify the taboo cells of a warehouse. A "taboo cell" is by definition
@@ -107,26 +114,36 @@ def taboo_cells(warehouse):
     
 
     
-    def is_corner(warehouse, loc): 
-        for pattern in corner_patterns:
-                search_pattern_output = ((loc[0] + pattern[0][0],loc[1] + pattern[0][1]), (loc[0] + pattern[1][0],loc[1] + pattern[1][1]))
+    def is_corner(warehouse, loc):
+        #receives:      The warehouse class, a tuple of ints which is a location
+        #
+        #does:          calculates if there is a corner at the location given
+        #
+        #returns:       a tuple that contains, A boolean indicating if the locaiton is a corner cell or not, the absolote position of the adjoining cells that make it a corner, the relative position of the adjoining cells that make it a corner
+
+        for rel_loc in corner_patterns:
+                abs_loc = ((loc[0] + rel_loc[0][0],loc[1] + rel_loc[0][1]), (loc[0] + rel_loc[1][0],loc[1] + rel_loc[1][1]))
                 applicable_walls = 0
             
-                for search_loc in search_pattern_output:
-                    for wall_loc in warehouse.walls:
-                    
-                        if search_loc == wall_loc:
-                            applicable_walls = applicable_walls + 1
+                for search_loc in abs_loc: #search for each of the required locations for the corner                   
+                     if search_loc in warehouse.walls:
+                         applicable_walls = applicable_walls + 1
                             
                             #do checks for obj here
                         
-                            if applicable_walls == 2:
-                                return (True, search_pattern_output, pattern)
+                         if applicable_walls == 2:
+                             return (True, abs_loc, rel_loc)
+                             #return True for a Corner, the absoloute location and the relative location
                         
-                            break
-        return (False, None, None)
+                            
+        return (False, None, None) 
     
-    def taboo_warehouse_display(warehouse, taboo_corners, taboo_straights, No_T, T):
+    def taboo_warehouse_display(warehouse, taboo_corners, taboo_straights, Taboo_T, Non_Taboo_T):
+        #receives:      the warehouse class, 4 lists of int tuples
+        #
+        #does:          creates a string representation of the warehouse and then takes each tuple from the 4 lists and marks their locations on the string representation of the warehouse
+        #
+        #returns:       the string representation of the warehouse with the taboo cells marked
 
         X,Y = zip(*warehouse.walls) # pythonic version of the above
         x_size, y_size = 1+max(X), 1+max(Y)
@@ -137,20 +154,20 @@ def taboo_cells(warehouse):
             if 0 <= x < x_size and 0 <= y < y_size:
                 vis[y][x] = "X"
 
-        for (x, y) in taboo_straights:
+        for (x, y) in taboo_straights: #display straights
             mark_taboo(x, y)
 
-        for (x, y) in taboo_corners:
+        for (x, y) in taboo_corners: #display corners
             mark_taboo(x, y)
 
-        for (x, y) in No_T:
+        for (x, y) in Taboo_T: #display T intersection taboo squares
             mark_taboo(x, y)
 
-        for (x, y) in T:
+        for (x, y) in Non_Taboo_T:
             if 0 <= x < x_size and 0 <= y < y_size:
-                vis[y][x] = " "  # Make sure this does not mark 'X' over ' '
+                vis[y][x] = " "  #will overwrite a few of the other Xs this is be design
 
-        for (x, y) in warehouse.walls:
+        for (x, y) in warehouse.walls: #display all the walls
             if 0 <= x < x_size and 0 <= y < y_size:
                 vis[y][x] = "#"
 
@@ -158,6 +175,16 @@ def taboo_cells(warehouse):
     
     
     def check_inside_warehouse(inlist):
+        #receives:      list of tuple locations
+        #
+        #does:          adds each tuple to a temp list if the location given has 4 walls around it from the warehouse
+        #
+        #returns:       returns a list of tuples all of which are locaitons that are inside the warehouse
+
+
+
+        #checks that all sides of an input location have an existing wall all around them.
+        #this stops us from having taboo squares outside of the actual warehouse
         temp = []
     #outside of warehouse loop
         for taboo_cell in inlist:
@@ -176,7 +203,7 @@ def taboo_cells(warehouse):
                 elif taboo_cell[1] > wall[1] and wall[0] == taboo_cell[0]:
                    down = True
                
-            if up and down and left and right:
+            if up and down and left and right: #if it found a wall in all 4 directions we can assume that the location is inside the warehouse
                  temp.append(taboo_cell)
              
         return temp       
@@ -189,15 +216,18 @@ def taboo_cells(warehouse):
 
     ###############################################################################
 
+    #gets
+        
+
     #rule 1
     for cell in warehouse.walls:
-        resp = is_corner(warehouse, cell)
+        resp = is_corner(warehouse, cell) #check if the cell is a corner + get the info about it
         if resp[0]:
             safe = False
-            dx = resp[2][0][0]
-            dy = resp[2][1][1]
+            dx = resp[2][0][0] #change in x direction
+            dy = resp[2][1][1] #change in y direction
             taboo_cell = (cell[0] + dx, cell[1] + dy)
-            corner_cell_list.append((cell, resp[1]))
+            corner_cell_list.append((cell, resp[1])) 
             
             #add loop here to check for Ts and Xs
 
@@ -207,7 +237,8 @@ def taboo_cells(warehouse):
             neg_x = False
             neg_y = False
             
-            for wall in warehouse.walls:
+            #HANDLE T AND X CORNERS
+            for wall in warehouse.walls: #check for T and Xs
                 if wall == neg_x_cell:
                     neg_x = True
                     T_cell_list.append((cell,resp[1][0], resp[1][1], neg_x_cell))
@@ -215,9 +246,19 @@ def taboo_cells(warehouse):
                     neg_y = True
                     T_cell_list.append((cell, resp[1][0], resp[1][1], neg_y_cell))
                     
-            #HANDLE T AND X CORNERS
+            
+
+                       #      
+            #neg x -> ### 
+
+                       #
+            #neg y ->  ##
+                       #
+
                     
-            if neg_x and neg_y:#x                               not sure if this will ever be utilised, inspection of example workshipfiles dont have any *should* work. Might be good to test before sub
+            if neg_x and neg_y:#x                    not sure if this will ever be utilised, inspection of example workshipfiles dont have any *should* work. Might be good to test before sub
+                
+                #potential taboo cells
                 cell_1 = (cell[0] - dx, cell[1] + dy) #neg x
                 cell_2 = (cell[0] + dx, cell[1] - dy) #neg y
                 cell_3 = (cell[0] - dx, cell[1] - dy) #both
@@ -231,7 +272,7 @@ def taboo_cells(warehouse):
                 if cell_3 not in warehouse.targets:
                      taboo_corner_cell_list.append(cell_3)   
                      
-
+                #adds to the list of corners -> a X counts as 4 corners
                 corner_cell_list.append((cell, (neg_x_cell, resp[1][1])))     #neg x
                 corner_cell_list.append((cell, (resp[1][0], neg_y_cell)))     #neg y
                 corner_cell_list.append((cell, (neg_x_cell, neg_y_cell)))     #both
@@ -258,11 +299,9 @@ def taboo_cells(warehouse):
 
             #end T X check
 
-            for obj in warehouse.targets:
-                    if taboo_cell == obj:
-                        safe = True
-                        break
-                    
+            if taboo_cell in warehouse.targets:
+                 safe = True
+
             if safe == False:
                    taboo_corner_cell_list.append(taboo_cell)
                 
@@ -271,12 +310,11 @@ def taboo_cells(warehouse):
     ####################################################################################################
     
     #rule 2
-
-    #will account for T and X when the corner checker does
     
     #array_builder
     corner_neighbour = []
     
+    #splits the corner_cell_list into parts so that each direction can be calculated
     for entry in corner_cell_list:
         corner_neighbour.append((entry[0], entry[1][0])) 
         corner_neighbour.append((entry[0], entry[1][1])) 
@@ -437,9 +475,7 @@ def taboo_cells(warehouse):
              temp.append(each)
              
     taboo_straight_cell_list = temp
-    
-   
-             
+      
     taboo_corner_cell_list = check_inside_warehouse(taboo_corner_cell_list)        
     taboo_straight_cell_list = check_inside_warehouse(taboo_straight_cell_list)  
     #finishing
@@ -488,6 +524,8 @@ def iterative_deepening_astar(problem, h):
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 class SokobanPuzzle(search.Problem):
+    #LUKE WHITTON
+
     '''
     An instance of the class 'SokobanPuzzle' represents a Sokoban puzzle.
     An instance contains information about the walls, the targets, the boxes
@@ -573,6 +611,12 @@ def check_elem_action_seq(warehouse, action_seq):
 
     #KENZIE HAIGH    
 
+    #receives:          warehouse class, list of strings that indicate an action, list is ordered
+    #
+    #does:              follows the actions given and updates the warehouse accordingly
+    #
+    #returns:           a string representation of the warehouse after the action sequence has been followed
+
     '''
     
     Determine if the sequence of actions listed in 'action_seq' is legal or not.
@@ -622,8 +666,6 @@ def check_elem_action_seq(warehouse, action_seq):
         box_x_move = worker_x + (dx * 2)
         box_y_move = worker_y + (dy * 2)
         
-        
-
         #check if move makes it go into a wall
         if (worker_x_move, worker_y_move) in warehouse.walls:
             return "Impossible"
@@ -685,6 +727,7 @@ def check_elem_action_seq(warehouse, action_seq):
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 def solve_weighted_sokoban(warehouse):
+    #LUKE WHITTON
     '''
     This function analyses the given warehouse.
     It returns the two items. The first item is an action sequence solution. 
