@@ -482,7 +482,7 @@ def taboo_cells(warehouse):
     
     returnable_value = taboo_warehouse_display(warehouse, taboo_corner_cell_list, taboo_straight_cell_list, no_obj_T, obj_T)
     
-    print(returnable_value)
+    #print(returnable_value)
     
     return returnable_value
     print('EOF')
