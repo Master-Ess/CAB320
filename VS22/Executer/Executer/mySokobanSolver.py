@@ -462,7 +462,7 @@ def taboo_cells(warehouse):
 
     taboo_straight_cell_list = list(dict.fromkeys(taboo_straight_cell_list))        
     
-    
+    #remove out of bounds taboo cells
 
     #remove all occurances with negitive numbers
     temp = []
@@ -475,8 +475,6 @@ def taboo_cells(warehouse):
              temp.append(each)
              
     taboo_straight_cell_list = temp
-    
-    #remove out of bounds taboo cells
       
     taboo_corner_cell_list = check_inside_warehouse(taboo_corner_cell_list)        
     taboo_straight_cell_list = check_inside_warehouse(taboo_straight_cell_list)  
