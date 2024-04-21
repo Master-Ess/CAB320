@@ -5,7 +5,7 @@ import search
 import sokoban
 import time
 
-dyn_file_path = "./warehouses/warehouse_test.txt"
+dyn_file_path = "./warehouses/warehouse_147.txt"
 warehouse = sokoban.Warehouse()
 warehouse.load_warehouse(dyn_file_path)
 

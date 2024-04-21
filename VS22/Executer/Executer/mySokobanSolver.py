@@ -342,7 +342,7 @@ def taboo_cells(warehouse):
         if side_2_loc in warehouse.targets:
             side_2_state = True    
             
-        eft = True    
+        locker = True    
         counter = 0
         for nub_loc in corner_neighbour:
            if nub_loc[1] == cur_loc or nub_loc[0] == cur_loc :
@@ -351,9 +351,9 @@ def taboo_cells(warehouse):
                  
         
         if counter > 1:
-            eft = False
+            locker = False
             
-        while eft:
+        while locker:
             cur_loc = (cur_loc[0] + dx, cur_loc[1] + dy)
             side_1_loc = (side_1_loc[0] + dx, side_1_loc[1] + dy)
             side_2_loc = (side_2_loc[0] + dx, side_2_loc[1] + dy)
@@ -368,11 +368,11 @@ def taboo_cells(warehouse):
                 
             for nub_loc in corner_neighbour:
                 if nub_loc[1] == cur_loc:
-                    eft = False
+                    locker = False
                     break
                 
             if (cur_loc[0] + dx, cur_loc[1] + dy) not in warehouse.walls:
-                eft = False
+                locker = False
                     
             side_1.append(side_1_loc)
             side_2.append(side_2_loc)
