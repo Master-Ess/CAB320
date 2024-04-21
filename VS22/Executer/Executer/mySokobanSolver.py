@@ -461,8 +461,6 @@ def taboo_cells(warehouse):
     #remove dupliates from taboo_straight_cell_list
 
     taboo_straight_cell_list = list(dict.fromkeys(taboo_straight_cell_list))        
-    
-    #remove out of bounds taboo cells
 
     #remove all occurances with negitive numbers
     temp = []
@@ -475,7 +473,8 @@ def taboo_cells(warehouse):
              temp.append(each)
              
     taboo_straight_cell_list = temp
-      
+    
+    #remove out of bounds taboo cells
     taboo_corner_cell_list = check_inside_warehouse(taboo_corner_cell_list)        
     taboo_straight_cell_list = check_inside_warehouse(taboo_straight_cell_list)  
     #finishing
@@ -488,38 +487,6 @@ def taboo_cells(warehouse):
     print('EOF')
 
     #raise NotImplementedError()
-
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-def iterative_deepening_astar(problem, h):
-    """ Implement the Iterative Deepening A* (IDA*) algorithm. """
-    def recursive_search(node, g, bound):
-        f = g + h(node)
-        if f > bound:
-            return None, f
-        if problem.goal_test(node.state):
-            return node, None
-        min_bound = float('inf')
-        for action in problem.actions(node.state):
-            child = node.child_node(problem, action)
-            result, new_bound = recursive_search(child, g + problem.path_cost(g, node.state, action, child.state), bound)
-            if result is not None:
-                return result, None
-            if new_bound < min_bound:
-                min_bound = new_bound
-        return None, min_bound
-
-    h = search.memoize(h or problem.h, 'h')
-    initial = search.Node(problem.initial)
-    bound = h(initial)
-
-    while True:
-        result, new_bound = recursive_search(initial, 0, bound)
-        if result is not None:
-            return result.solution(), result.path_cost
-        if new_bound == float('inf'):
-            return 'Impossible', None
-        bound = new_bound
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -539,44 +506,42 @@ class SokobanPuzzle(search.Problem):
     #
     #         "INSERT YOUR CODE HERE"
     #
-    #     Revisit the sliding puzzle and the pancake puzzle for inspiration!
-    #
-    #     Note that you will need to add several functions to 
-    #     complete this class. For example, a 'result' method is needed
-    #     to satisfy the interface of 'search.Problem'.
-    #
-    #     You are allowed (and encouraged) to use auxiliary functions and classes
 
     def __init__(self, warehouse):
-        super().__init__(initial=(warehouse.worker, tuple(warehouse.boxes)))
-        self.warehouse = warehouse
-        self.targets = set(warehouse.targets)
-        self.walls = set(warehouse.walls)
-        self.taboo_cells = set(sokoban.find_2D_iterator(taboo_cells(self.warehouse).split("\n"), "X"))
-        self.min_distances = {}
-        self.update_distances(warehouse.boxes)  # Initially update distances for all starting boxes
+        super().__init__(initial=(warehouse.worker, tuple(warehouse.boxes)))                            # Intialise with starting state of the warehouse (Worker and box position)
+        self.warehouse = warehouse                                                                      
+        self.targets = set(warehouse.targets)                                                           # Set of target positions where boxes need to be moved to
+        self.walls = set(warehouse.walls)                                                               # Set of all wall positions within warehouse
+        self.taboo_cells = set(sokoban.find_2D_iterator(taboo_cells(self.warehouse).split("\n"), "X"))  # Set of taboo cells where boxes should not be moved to 
+        self.min_distances = {}                                                                         # Dictrionary to store the minimum distances from each box to its nearest target
+        self.update_distances(warehouse.boxes)                                                          # Initially update distances for all starting boxes     
 
     def update_distances(self, boxes):
-        """ Update minimum distances for each box to the nearest target dynamically. """
+        # Update minimum distances for each box to the nearest target dynamically
         for box in boxes:
             if box not in self.min_distances:  # Calculate if not already calculated
                 self.min_distances[box] = min(abs(box[0] - target[0]) + abs(box[1] - target[1]) for target in self.targets)
 
     def actions(self, state):
+        # Determine possible actions from the current state
         worker, boxes = state
         possible_actions = []
+        # Iterate through possible movement directions
         for direction, (dx, dy) in DIRECTIONS.items():
             new_worker = (worker[0] + dx, worker[1] + dy)
+            # Check if the move is into a freee space or into a box that can be pushed
             if new_worker not in self.walls and new_worker not in boxes:
                 possible_actions.append(direction)
                 continue
             if new_worker in boxes:
                 new_box = (new_worker[0] + dx, new_worker[1] + dy)
+                # Ensure the box position is valid
                 if new_box not in self.walls and new_box not in boxes and new_box not in self.taboo_cells:
                     possible_actions.append(direction)
         return possible_actions
 
     def result(self, state, action):
+        # Compute the new state resulting from an action
         worker, boxes = state
         dx, dy = DIRECTIONS[action]
         new_worker = (worker[0] + dx, worker[1] + dy)
@@ -586,10 +551,12 @@ class SokobanPuzzle(search.Problem):
         return (new_worker, new_boxes)
 
     def goal_test(self, state):
+        # Check if all boxes are on rarget positions
         _, boxes = state
         return all(box in self.targets for box in boxes)
 
     def path_cost(self, c, state1, action, state2):
+        # Calculate the cost of a path considering the weight of the boxes moved
         _, boxes1 = state1
         _, boxes2 = state2
         if boxes1 != boxes2:
@@ -601,7 +568,7 @@ class SokobanPuzzle(search.Problem):
         return c + 1
 
     def h(self, node):
-        """ Use the dynamically updated minimum distances for heuristic calculation. """
+        # Use the dynamically updated minimum distances for heuristic calculation
         _, boxes = node.state
         return sum(self.min_distances[box] for box in boxes)
 
@@ -751,13 +718,19 @@ def solve_weighted_sokoban(warehouse):
 
     '''
 
+    # Intialise the puzzle from warehouse object
     puzzle = SokobanPuzzle(warehouse)
+    # Use astar algorithm to find the solution
     solution = search.astar_graph_search(puzzle, h=puzzle.h)
+    
+
     if solution is None:
         return 'Impossible', None
-    actions = solution.solution()
-    cost = solution.path_cost
-    return actions, cost
+    
+    S = solution.solution()     # List of actions that solves the given puzzle
+    C = solution.path_cost      # The total cost of the action sequence C
+
+    return S, C
 
     raise NotImplementedError()
 
