@@ -61,9 +61,11 @@ def load_data(path):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(current_dir, path)
 
+    image_size = 224
+
     dataset = image_dataset_from_directory(
         path,
-        image_size=(224, 224),  # 224x224 image size for model
+        image_size=(image_size, image_size),  
         batch_size=32,
         label_mode='int'  #categorical --> one-hot
     )
@@ -441,17 +443,22 @@ if __name__ == "__main__":
     model = load_model()
     X, Y = load_data("small_flower_dataset")
 
-
-    X_train, Y_train, X_test, Y_test, X_eval, Y_eval = split_data(X, Y, 0.8, eval_set=True) #80% referenced in assignment
+    split = 0.8 #80% referenced in assignment
+    X_train, Y_train, X_test, Y_test, X_eval, Y_eval = split_data(X, Y, split, eval_set=True) #
     
     train_set = (X_train, Y_train)
     eval_set = (X_eval, Y_eval)
     test_set = (X_test, Y_test)
 
+    learning_rate = 0.001
+    momentum = 0.0
+    nesterov = False
 
-    model, metrics = transfer_learning(train_set, eval_set, test_set, model,(0.001, 0.0, False))
+
+
+    model, metrics = transfer_learning(train_set, eval_set, test_set, model,(learning_rate, momentum, nesterov))
     
-    model, metrics = accelerated_learning(train_set, eval_set, test_set, model,(0.001, 0.0, False)) #be careful this is very slow without a gpu. Like my 3080 did all 20 epochs in the time my 10700 did one epoch
+    model, metrics = accelerated_learning(train_set, eval_set, test_set, model, (learning_rate, momentum, nesterov)) #be careful this is very slow without a gpu. Like my 3080 did all 20 epochs in the time my 10700 did one epoch
 
 
     
