@@ -14,9 +14,17 @@ Hopefully without introducing new bugs.
 
 ### LIBRARY IMPORTS HERE ###
 import os
+import keras.preprocessing
 import numpy as np
 import keras.applications as ka
 import keras
+
+import tensorflow as tf #why not already imported???
+
+from tensorflow.keras.preprocessing import image_dataset_from_directory
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras import layers, models, optimizers, metrics, mixed_precision
+from sklearn.metrics import recall_score, precision_score, f1_score #check that we can use this module
     
 def my_team():
     '''
@@ -30,8 +38,13 @@ def my_team():
 def load_model():
     '''
     Load in a model using the tf.keras.applications model and return it.
-    Insert a more detailed description here
+    MobileNetV2
     '''
+
+    resp = keras.applications.MobileNetV2(weights='imagenet') #, include_top=True
+
+    return resp
+
     raise NotImplementedError
     
 
@@ -43,6 +56,31 @@ def load_data(path):
     
     Insert a more detailed description here.
     '''
+    
+
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(current_dir, path)
+
+    dataset = image_dataset_from_directory(
+        path,
+        image_size=(224, 224),  # 224x224 image size for model
+        batch_size=32,
+        label_mode='int'  #categorical --> one-hot
+    )
+
+    images = []
+    labels = []
+
+    for batch in dataset:
+        batch_images, batch_labels = batch
+        images.append(batch_images.numpy())
+        labels.append(batch_labels.numpy())
+
+    images = np.concatenate(images, axis=0)
+    labels = np.concatenate(labels, axis=0)
+
+    return images, labels
+
     raise NotImplementedError
     
     
@@ -57,7 +95,30 @@ def split_data(X, Y, train_fraction, randomize=False, eval_set=True):
     
     Insert a more detailed description here.
     """
-    raise NotImplementedError
+
+    #remove before submit or find reference if actually needed??? Why is the arg in the function?????
+    if randomize: #not explictily referenced?
+        # shufle
+        ind = np.arange(X.shape[0])
+        np.random.shuffle(ind)
+        X = X[ind]
+        Y = Y[ind]
+    
+    
+    num_train = int(train_fraction * X.shape[0])
+    X_train, Y_train = X[:num_train], Y[:num_train]
+    X_test, Y_test = X[num_train:], Y[num_train:]
+
+    if eval_set:
+        num_test = X_test.shape[0]
+        num_eval = num_test // 2
+        X_eval, Y_eval = X_test[:num_eval], Y_test[:num_eval]
+        X_test, Y_test = X_test[num_eval:], Y_test[num_eval:]
+        
+        return (X_train, Y_train, X_test, Y_test, X_eval, Y_eval)
+    
+    return (X_train, Y_train, X_test, Y_test)
+    #raise NotImplementedError
     
     
 
@@ -184,15 +245,80 @@ def transfer_learning(train_set, eval_set, test_set, model, parameters):
         - parameters: list or tuple of parameters to use during training:
             (learning_rate, momentum, nesterov)
 
-
     Outputs:
         - model : an instance of tf.keras.applications.MobileNetV2
         - metrics : list of classwise recall, precision, and f1 scores of the 
             model on the test_set (list of np.ndarray)
-
     '''
-    raise NotImplementedError
+    learning_rate, momentum, nesterov = parameters
+
+    # Load MobileNetV2 without the top layer
+    base_model = tf.keras.applications.MobileNetV2(input_shape=(224, 224, 3),
+                                                   include_top=False,
+                                                   weights='imagenet')
+
+    # Freeze the base model
+    base_model.trainable = False
+
+    # Add a new top layer for our specific task
+    inputs = tf.keras.Input(shape=(224, 224, 3))
+    x = base_model(inputs, training=False)
+    x = layers.GlobalAveragePooling2D()(x)
+    x = layers.Dropout(0.2)(x)
+    outputs = layers.Dense(len(set(train_set[1])), activation='softmax')(x)
+    model = models.Model(inputs, outputs)
+
+    # Compile the model with the specified parameters
+    model.compile(
+        optimizer=optimizers.SGD(learning_rate=learning_rate, momentum=momentum, nesterov=nesterov),
+        loss='sparse_categorical_crossentropy',
+        metrics=['accuracy']
+    )
+
+    # Train the model
+    X_train, Y_train = train_set
+    X_eval, Y_eval = eval_set
+    model.fit(
+        X_train, Y_train,
+        epochs=10,  # You can adjust the number of epochs as needed
+        validation_data=(X_eval, Y_eval)
+    )
+
+    # Unfreeze some layers of the base model for fine-tuning
+    base_model.trainable = True
+    fine_tune_at = 100  # Fine-tune from this layer onwards
+    for layer in base_model.layers[:fine_tune_at]:
+        layer.trainable = False
+
+    # Re-compile the model with a lower learning rate for fine-tuning
+    model.compile(
+        optimizer=optimizers.SGD(learning_rate=learning_rate / 10, momentum=momentum, nesterov=nesterov),
+        loss='sparse_categorical_crossentropy',
+        metrics=['accuracy']
+    )
+
+    # Continue training with fine-tuning
+    model.fit(
+        X_train, Y_train,
+        epochs=10,  # You can adjust the number of epochs as needed
+        validation_data=(X_eval, Y_eval)
+    )
+
+    # Evaluate the model on the test set
+    X_test, Y_test = test_set
+    Y_pred = model.predict(X_test)
+    Y_pred_classes = np.argmax(Y_pred, axis=1)
+
+    # Calculate classwise recall, precision, and f1 scores
+    recall = recall_score(Y_test, Y_pred_classes, average=None)
+    precision = precision_score(Y_test, Y_pred_classes, average=None)
+    f1 = f1_score(Y_test, Y_pred_classes, average=None)
+
+    metrics = [recall, precision, f1]
+
     return model, metrics
+
+
     
 def accelerated_learning(train_set, eval_set, test_set, model, parameters):
     '''
@@ -216,18 +342,118 @@ def accelerated_learning(train_set, eval_set, test_set, model, parameters):
             model on the test_set (list of np.ndarray)
 
     '''
-    raise NotImplementedError
+    learning_rate, momentum, nesterov = parameters
+
+    # Enable mixed precision training
+    mixed_precision.set_global_policy('mixed_float16')
+
+    # Load MobileNetV2 without the top layer
+    base_model = tf.keras.applications.MobileNetV2(input_shape=(224, 224, 3),
+                                                   include_top=False,
+                                                   weights='imagenet')
+
+    # Freeze the base model
+    base_model.trainable = False
+
+    # Add a new top layer for our specific task
+    inputs = tf.keras.Input(shape=(224, 224, 3))
+    x = base_model(inputs, training=False)
+    x = layers.GlobalAveragePooling2D()(x)
+    x = layers.Dropout(0.2)(x)
+    outputs = layers.Dense(len(set(train_set[1])), activation='softmax', dtype='float32')(x)
+    model = models.Model(inputs, outputs)
+
+    # Compile the model with the specified parameters
+    model.compile(
+        optimizer=optimizers.SGD(learning_rate=learning_rate, momentum=momentum, nesterov=nesterov),
+        loss='sparse_categorical_crossentropy',
+        metrics=['accuracy']
+    )
+
+    # Data augmentation
+    datagen = ImageDataGenerator(
+        rotation_range=40,
+        width_shift_range=0.2,
+        height_shift_range=0.2,
+        shear_range=0.2,
+        zoom_range=0.2,
+        horizontal_flip=True,
+        fill_mode='nearest'
+    )
+
+    X_train, Y_train = train_set
+    X_eval, Y_eval = eval_set
+
+    # Learning rate scheduler
+    def lr_scheduler(epoch, lr):
+        if epoch < 10:
+            return lr
+        else:
+            return lr * tf.math.exp(-0.1)
+
+    callback = tf.keras.callbacks.LearningRateScheduler(lr_scheduler)
+
+    # Train the model with data augmentation
+    model.fit(
+        datagen.flow(X_train, Y_train, batch_size=32),
+        epochs=20,  # You can adjust the number of epochs as needed
+        validation_data=(X_eval, Y_eval),
+        callbacks=[callback]
+    )
+
+    # Unfreeze some layers of the base model for fine-tuning
+    base_model.trainable = True
+    fine_tune_at = 100  # Fine-tune from this layer onwards
+    for layer in base_model.layers[:fine_tune_at]:
+        layer.trainable = False
+
+    # Re-compile the model with a lower learning rate for fine-tuning
+    model.compile(
+        optimizer=optimizers.SGD(learning_rate=learning_rate / 10, momentum=momentum, nesterov=nesterov),
+        loss='sparse_categorical_crossentropy',
+        metrics=['accuracy']
+    )
+
+    # Continue training with fine-tuning and data augmentation
+    model.fit(
+        datagen.flow(X_train, Y_train, batch_size=32),
+        epochs=10,  # You can adjust the number of epochs as needed
+        validation_data=(X_eval, Y_eval),
+        callbacks=[callback]
+    )
+
+    # Evaluate the model on the test set
+    X_test, Y_test = test_set
+    Y_pred = model.predict(X_test)
+    Y_pred_classes = np.argmax(Y_pred, axis=1)
+
+    # Calculate classwise recall, precision, and f1 scores
+    recall = recall_score(Y_test, Y_pred_classes, average=None)
+    precision = precision_score(Y_test, Y_pred_classes, average=None)
+    f1 = f1_score(Y_test, Y_pred_classes, average=None)
+
+    metrics = [recall, precision, f1]
+
     return model, metrics
 
 if __name__ == "__main__":
     
     model = load_model()
-    dataset = load_data()
-    train_eval_test = split_data()
+    X, Y = load_data("small_flower_dataset")
+
+
+    X_train, Y_train, X_test, Y_test, X_eval, Y_eval = split_data(X, Y, 0.8, eval_set=True) #80% referenced in assignment
     
-    model, metrics = transfer_learning()
+    train_set = (X_train, Y_train)
+    eval_set = (X_eval, Y_eval)
+    test_set = (X_test, Y_test)
+
+
+    model, metrics = transfer_learning(train_set, eval_set, test_set, model,(0.001, 0.0, False))
     
-    model, metrics = accelerated_learning()
+    model, metrics = accelerated_learning(train_set, eval_set, test_set, model,(0.001, 0.0, False)) #be careful this is very slow and needs GPU
+
+
     
     
 #########################  CODE GRAVEYARD  #############################
