@@ -451,7 +451,7 @@ if __name__ == "__main__":
 
     model, metrics = transfer_learning(train_set, eval_set, test_set, model,(0.001, 0.0, False))
     
-    model, metrics = accelerated_learning(train_set, eval_set, test_set, model,(0.001, 0.0, False)) #be careful this is very slow and needs GPU
+    model, metrics = accelerated_learning(train_set, eval_set, test_set, model,(0.001, 0.0, False)) #be careful this is very slow without a gpu. Like my 3080 did all 20 epochs in the time my 10700 did one epoch
 
 
     
