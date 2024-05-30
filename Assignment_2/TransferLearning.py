@@ -13,17 +13,14 @@ Hopefully without introducing new bugs.
 
 ### LIBRARY IMPORTS HERE ###
 import os
-import keras.preprocessing
 import numpy as np
-import keras.applications as ka
-import keras
-
-import tensorflow as tf #why not already imported???
-
+import tensorflow as tf
 from tensorflow.keras.preprocessing import image_dataset_from_directory
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras import layers, models, optimizers, metrics, mixed_precision, Model
-from sklearn.metrics import recall_score, precision_score, f1_score #check that we can use this module
+from tensorflow.keras import layers, models, optimizers, mixed_precision, Model
+from sklearn.metrics import recall_score, precision_score, f1_score
+import matplotlib.pyplot as plt
+
     
 def my_team():
     '''
