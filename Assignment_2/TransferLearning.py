@@ -11,7 +11,6 @@ Last modified 2024-05-07 by Anthony Vanderkop.
 Hopefully without introducing new bugs.
 '''
 
-
 ### LIBRARY IMPORTS HERE ###
 import os
 import numpy as np
@@ -133,7 +132,7 @@ def f1(predictions, ground_truth):
     f1_scores = 2 * (prec * rec) / (prec + rec)
     return np.nan_to_num(f1_scores)
 
-def k_fold_validation(features, ground_truth, classifier, k=2):
+def k_fold_validation(features, ground_truth, classifier, k=3):
     kf = KFold(n_splits=k, shuffle=True)
     all_precisions, all_recalls, all_f1s = [], [], []
 
@@ -315,3 +314,8 @@ if __name__ == "__main__":
     print(f"F1 Score: {f1_scores}")
 
     plot_history(best_history, title=f"Transfer Learning - Training with best lr={best_lr}")
+
+    # K-fold validation with k=3
+    avg_metrics, sigma_metrics = k_fold_validation(X, Y, model, k=3)
+    print(f"K-Fold Validation Metrics (k=3): {avg_metrics}")
+    print(f"Standard Deviation of Metrics (k=3): {sigma_metrics}")
