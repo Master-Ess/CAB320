@@ -254,55 +254,51 @@ def transfer_learning(train_set, eval_set, test_set, model, parameters):
     '''
     learning_rate, momentum, nesterov = parameters
 
-    # Load MobileNetV2 without the top layer
-    base_model = tf.keras.applications.MobileNetV2(input_shape=(224, 224, 3),
-                                                   include_top=False,
-                                                   weights='imagenet')
 
-    # Freeze the base model
+    base_model = model
+
+    
     base_model.trainable = False
 
-    # Add a new top layer for our specific task
+    # remove a layer and add the 5 node dense later
     inputs = tf.keras.Input(shape=(224, 224, 3))
-    x = base_model(inputs, training=False)
-    x = layers.GlobalAveragePooling2D()(x)
-    x = layers.Dropout(0.2)(x)
-    outputs = layers.Dense(len(set(train_set[1])), activation='softmax')(x)
+    number_of_outputs = len(set(train_set[1])) #should return 5
+
+    shaved_base_model = base_model(inputs, training=False)[-2].output #this should get the base_model but also remove the last layer so we can add or own
+    outputs = layers.Dense(number_of_outputs, activation='softmax', dtype='float32')(shaved_base_model) #add the additional layer as requested
     model = models.Model(inputs, outputs)
 
-    # Compile the model with the specified parameters
     model.compile(
         optimizer=optimizers.SGD(learning_rate=learning_rate, momentum=momentum, nesterov=nesterov),
         loss='sparse_categorical_crossentropy',
         metrics=['accuracy']
     )
 
-    # Train the model
+    # Train
     X_train, Y_train = train_set
     X_eval, Y_eval = eval_set
     model.fit(
         X_train, Y_train,
-        epochs=10,  # You can adjust the number of epochs as needed
+        epochs=10, #check 
         validation_data=(X_eval, Y_eval)
     )
 
-    # Unfreeze some layers of the base model for fine-tuning
+    # unfreeze
     base_model.trainable = True
-    fine_tune_at = 100  # Fine-tune from this layer onwards
+    fine_tune_at = 100  # anything specific
     for layer in base_model.layers[:fine_tune_at]:
         layer.trainable = False
 
-    # Re-compile the model with a lower learning rate for fine-tuning
     model.compile(
         optimizer=optimizers.SGD(learning_rate=learning_rate / 10, momentum=momentum, nesterov=nesterov),
         loss='sparse_categorical_crossentropy',
         metrics=['accuracy']
     )
 
-    # Continue training with fine-tuning
+    # more training with new variables
     model.fit(
         X_train, Y_train,
-        epochs=10,  # You can adjust the number of epochs as needed
+        epochs=10,  
         validation_data=(X_eval, Y_eval)
     )
 
@@ -346,33 +342,28 @@ def accelerated_learning(train_set, eval_set, test_set, model, parameters):
     '''
     learning_rate, momentum, nesterov = parameters
 
-    # Enable mixed precision training
+    #makes stuff faster
     mixed_precision.set_global_policy('mixed_float16')
 
-    # Load MobileNetV2 without the top layer
-    base_model = tf.keras.applications.MobileNetV2(input_shape=(224, 224, 3),
-                                                   include_top=False,
-                                                   weights='imagenet')
+    base_model = model
 
-    # Freeze the base model
     base_model.trainable = False
 
-    # Add a new top layer for our specific task
+    # remove a layer and add the 5 node dense later
     inputs = tf.keras.Input(shape=(224, 224, 3))
-    x = base_model(inputs, training=False)
-    x = layers.GlobalAveragePooling2D()(x)
-    x = layers.Dropout(0.2)(x)
-    outputs = layers.Dense(len(set(train_set[1])), activation='softmax', dtype='float32')(x)
+    number_of_outputs = len(set(train_set[1])) #should return 5
+
+    shaved_base_model = base_model(inputs, training=False)[-2].output #this should get the base_model but also remove the last layer so we can add or own
+    outputs = layers.Dense(number_of_outputs, activation='softmax', dtype='float32')(shaved_base_model) #add the additional layer as requested in task sheet
     model = models.Model(inputs, outputs)
 
-    # Compile the model with the specified parameters
     model.compile(
         optimizer=optimizers.SGD(learning_rate=learning_rate, momentum=momentum, nesterov=nesterov),
         loss='sparse_categorical_crossentropy',
         metrics=['accuracy']
     )
 
-    # Data augmentation
+    # data augementation - do we chuck anything specific here or not? Can i just have whatever variables i want? 
     datagen = ImageDataGenerator(
         rotation_range=40,
         width_shift_range=0.2,
@@ -386,7 +377,7 @@ def accelerated_learning(train_set, eval_set, test_set, model, parameters):
     X_train, Y_train = train_set
     X_eval, Y_eval = eval_set
 
-    # Learning rate scheduler
+    # learning rate scheduler 
     def lr_scheduler(epoch, lr):
         if epoch < 10:
             return lr
@@ -395,21 +386,20 @@ def accelerated_learning(train_set, eval_set, test_set, model, parameters):
 
     callback = tf.keras.callbacks.LearningRateScheduler(lr_scheduler)
 
-    # Train the model with data augmentation
+    # train
     model.fit(
         datagen.flow(X_train, Y_train, batch_size=32),
-        epochs=20,  # You can adjust the number of epochs as needed
+        epochs=20,  # check number
         validation_data=(X_eval, Y_eval),
         callbacks=[callback]
     )
 
-    # Unfreeze some layers of the base model for fine-tuning
-    base_model.trainable = True
-    fine_tune_at = 100  # Fine-tune from this layer onwards
+    # unfreeze layers
+    base_model.trainable = True #correct?
+    fine_tune_at = 100  # what to put here?
     for layer in base_model.layers[:fine_tune_at]:
         layer.trainable = False
 
-    # Re-compile the model with a lower learning rate for fine-tuning
     model.compile(
         optimizer=optimizers.SGD(learning_rate=learning_rate / 10, momentum=momentum, nesterov=nesterov),
         loss='sparse_categorical_crossentropy',
@@ -419,17 +409,16 @@ def accelerated_learning(train_set, eval_set, test_set, model, parameters):
     # Continue training with fine-tuning and data augmentation
     model.fit(
         datagen.flow(X_train, Y_train, batch_size=32),
-        epochs=10,  # You can adjust the number of epochs as needed
+        epochs=10,  # check number
         validation_data=(X_eval, Y_eval),
         callbacks=[callback]
     )
 
-    # Evaluate the model on the test set
+    # eval
     X_test, Y_test = test_set
     Y_pred = model.predict(X_test)
     Y_pred_classes = np.argmax(Y_pred, axis=1)
 
-    # Calculate classwise recall, precision, and f1 scores
     recall = recall_score(Y_test, Y_pred_classes, average=None)
     precision = precision_score(Y_test, Y_pred_classes, average=None)
     f1 = f1_score(Y_test, Y_pred_classes, average=None)
