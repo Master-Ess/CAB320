@@ -89,23 +89,36 @@ def split_data(X, Y, train_fraction, randomize=False, eval_set=True):
     Split the data into training and testing sets. If eval_set is True, also create
     an evaluation dataset. There should be two outputs if eval_set there should
     be three outputs (train, test, eval), otherwise two outputs (train, test).
+    
+    To see what type train, test, and eval should be, refer to the inputs of 
+    transfer_learning().
+    
+    Insert a more detailed description here.
     """
-    if randomize:
-        indices = np.arange(X.shape[0])
-        np.random.shuffle(indices)
-        X, Y = X[indices], Y[indices]
 
-    train_size = int(train_fraction * X.shape[0])
+    #remove before submit or find reference if actually needed??? Why is the arg in the function?????
+    if randomize: #not explictily referenced?
+        # shufle
+        ind = np.arange(X.shape[0])
+        np.random.shuffle(ind)
+        X = X[ind]
+        Y = Y[ind]
+    
+    
+    num_train = int(train_fraction * X.shape[0])
+    X_train, Y_train = X[:num_train], Y[:num_train]
+    X_test, Y_test = X[num_train:], Y[num_train:]
+
     if eval_set:
-        eval_size = (X.shape[0] - train_size) // 2
-        train_X, train_Y = X[:train_size], Y[:train_size]
-        eval_X, eval_Y = X[train_size:train_size + eval_size], Y[train_size:train_size + eval_size]
-        test_X, test_Y = X[train_size + eval_size:], Y[train_size + eval_size:]
-        return (train_X, train_Y), (eval_X, eval_Y), (test_X, test_Y)
-    else:
-        train_X, train_Y = X[:train_size], Y[:train_size]
-        test_X, test_Y = X[train_size:], Y[train_size:]
-        return (train_X, train_Y), (test_X, test_Y)
+        num_test = X_test.shape[0]
+        num_eval = num_test // 2
+        X_eval, Y_eval = X_test[:num_eval], Y_test[:num_eval]
+        X_test, Y_test = X_test[num_eval:], Y_test[num_eval:]
+        
+        return (X_train, Y_train, X_test, Y_test, X_eval, Y_eval)
+    
+    return (X_train, Y_train, X_test, Y_test)
+    #raise NotImplementedError
 
 def confusion_matrix(predictions, ground_truth, plot=False, all_classes=None):
     '''
