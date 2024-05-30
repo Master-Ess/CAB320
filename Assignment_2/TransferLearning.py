@@ -115,7 +115,7 @@ def split_data(X, Y, train_fraction, randomize=False, eval_set=True):
     Insert a more detailed description here.
     """
 
-    #remove before submit or find reference if actually needed??? Why is the arg in the function?????
+    #remove before submit or find reference if actually needed??? Why is the arg in the function????? #USED IN REPORT PART 7
     if randomize: #not explictily referenced?
         # shufle
         ind = np.arange(X.shape[0])
