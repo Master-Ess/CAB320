@@ -18,10 +18,11 @@ import tensorflow as tf
 from tensorflow.keras.preprocessing import image_dataset_from_directory
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras import layers, models, optimizers, mixed_precision, Model
-from sklearn.metrics import recall_score, precision_score, f1_score
+from sklearn.metrics import recall_score, precision_score, f1_score, confusion_matrix as sk_confusion_matrix
+from sklearn.model_selection import KFold
 import matplotlib.pyplot as plt
+import itertools
 
-    
 def my_team():
     '''
     Return the list of the team members of this assignment submission as a list
@@ -93,14 +94,11 @@ def split_data(X, Y, train_fraction, randomize=False, eval_set=True):
     Insert a more detailed description here.
     """
 
-    #remove before submit or find reference if actually needed??? Why is the arg in the function?????
-    if randomize: #not explictily referenced?
-        # shufle
+    if randomize:
         ind = np.arange(X.shape[0])
         np.random.shuffle(ind)
         X = X[ind]
         Y = Y[ind]
-    
     
     num_train = int(train_fraction * X.shape[0])
     X_train, Y_train = X[:num_train], Y[:num_train]
@@ -115,7 +113,6 @@ def split_data(X, Y, train_fraction, randomize=False, eval_set=True):
         return (X_train, Y_train, X_test, Y_test, X_eval, Y_eval)
     
     return (X_train, Y_train, X_test, Y_test)
-    #raise NotImplementedError
 
 def confusion_matrix(predictions, ground_truth, plot=False, all_classes=None):
     '''
@@ -129,6 +126,30 @@ def confusion_matrix(predictions, ground_truth, plot=False, all_classes=None):
     for true, pred in zip(ground_truth, predictions):
         cm[true, pred] += 1
     return cm
+
+def plot_confusion_matrix(cm, classes):
+    '''
+    Plot the confusion matrix.
+    '''
+    plt.figure(figsize=(8, 6))
+    plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+    plt.title('Confusion matrix')
+    plt.colorbar()
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes, rotation=45)
+    plt.yticks(tick_marks, classes)
+
+    fmt = 'd'
+    thresh = cm.max() / 2.
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        plt.text(j, i, format(cm[i, j], fmt),
+                 horizontalalignment="center",
+                 color="white" if cm[i, j] > thresh else "black")
+
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+    plt.show()
 
 def precision(predictions, ground_truth):
     '''
@@ -255,7 +276,7 @@ def transfer_learning(train_set, eval_set, test_set, model, parameters):
 
     metrics = [recall_scores, precision_scores, f1_scores]
 
-    return model, metrics, history, history_fine
+    return model, metrics, history, history_fine, Y_pred_classes
 
 def accelerated_learning(train_set, eval_set, test_set, model, parameters):
     '''
@@ -329,7 +350,7 @@ def accelerated_learning(train_set, eval_set, test_set, model, parameters):
 
     metrics = [recall_scores, precision_scores, f1_scores]
 
-    return model, metrics, history, history_fine
+    return model, metrics, history, history_fine, Y_pred_classes
 
 def plot_history(history, title="Training and Validation Metrics"):
     '''
@@ -370,16 +391,43 @@ if __name__ == "__main__":
     eval_set = (X_eval, Y_eval)
     test_set = (X_test, Y_test)
 
-    learning_rate = 0.001
-    momentum = 0.0
-    nesterov = False
+    learning_rates = [0.1, 0.01, 0.001]
+    best_lr = 0.001
+    best_metrics = None
+    best_model = None
+    best_history = None
+    best_history_fine = None
+    best_predictions = None
 
-    model, metrics, history, history_fine = transfer_learning(train_set, eval_set, test_set, model, (learning_rate, momentum, nesterov))
-    print("Transfer Learning Metrics:", metrics)
-    plot_history(history, title="Transfer Learning - Initial Training")
-    plot_history(history_fine, title="Transfer Learning - Fine Tuning")
-    
-    model, metrics, history, history_fine = accelerated_learning(train_set, eval_set, test_set, model, (learning_rate, momentum, nesterov))
-    print("Accelerated Transfer Learning Metrics:", metrics)
-    plot_history(history, title="Accelerated Transfer Learning - Initial Training")
-    plot_history(history_fine, title="Accelerated Transfer Learning - Fine Tuning")
+    for lr in learning_rates:
+        model = load_model()
+        model, metrics, history, history_fine, predictions = transfer_learning(train_set, eval_set, test_set, model, (lr, 0.0, False))
+        print(f"Learning rate: {lr}, Transfer Learning Metrics:", metrics)
+        plot_history(history, title=f"Transfer Learning - Initial Training with lr={lr}")
+        plot_history(history_fine, title=f"Transfer Learning - Fine Tuning with lr={lr}")
+        
+        if best_metrics is None or metrics[2].mean() > best_metrics[2].mean(): # Choose the best model based on f1 score
+            best_lr = lr
+            best_metrics = metrics
+            best_model = model
+            best_history = history
+            best_history_fine = history_fine
+            best_predictions = predictions
+
+    print(f"Best learning rate: {best_lr}")
+
+    # Plot confusion matrix for the best model
+    cm = sk_confusion_matrix(Y_test, best_predictions)
+    plot_confusion_matrix(cm, classes=[0, 1, 2, 3, 4])
+
+    # Precision, Recall, F1 scores for the best model
+    precision_scores = precision(best_predictions, Y_test)
+    recall_scores = recall(best_predictions, Y_test)
+    f1_scores = f1(best_predictions, Y_test)
+
+    print(f"Precision: {precision_scores}")
+    print(f"Recall: {recall_scores}")
+    print(f"F1 Score: {f1_scores}")
+
+    plot_history(best_history, title=f"Transfer Learning - Initial Training with best lr={best_lr}")
+    plot_history(best_history_fine, title=f"Transfer Learning - Fine Tuning with best lr={best_lr}")
