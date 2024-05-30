@@ -18,10 +18,19 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras.preprocessing import image_dataset_from_directory
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras import layers, models, optimizers, mixed_precision, Model
+from tensorflow.keras import layers, models, optimizers, mixed_precision
 from sklearn.model_selection import KFold
 import matplotlib.pyplot as plt
 import itertools
+
+# Ensure GPU memory growth is enabled
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    try:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+    except RuntimeError as e:
+        print(e)
 
 def my_team():
     return [(10755012, "Kenzie", "Haigh"), (1, "Luke", "Whitton"), (2, "Emma", "Wu")]
@@ -46,7 +55,7 @@ def load_data(path):
     dataset = image_dataset_from_directory(
         path,
         image_size=(image_size, image_size),
-        batch_size=32,
+        batch_size=16,  # Reduced batch size
         label_mode='int'
     )
 
@@ -188,7 +197,7 @@ def transfer_learning(train_set, eval_set, test_set, model, parameters):
 def accelerated_learning(train_set, eval_set, test_set, model, parameters):
     learning_rate, momentum, nesterov = parameters
 
-    tf.keras.mixed_precision.set_global_policy('mixed_float16')
+    mixed_precision.set_global_policy('mixed_float16')
 
     model.compile(
         optimizer=optimizers.SGD(learning_rate=learning_rate, momentum=momentum, nesterov=nesterov),
