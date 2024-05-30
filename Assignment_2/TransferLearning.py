@@ -23,7 +23,7 @@ import tensorflow as tf #why not already imported???
 
 from tensorflow.keras.preprocessing import image_dataset_from_directory
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras import layers, models, optimizers, metrics, mixed_precision
+from tensorflow.keras import layers, models, optimizers, metrics, mixed_precision, Model
 from sklearn.metrics import recall_score, precision_score, f1_score #check that we can use this module
     
 def my_team():
@@ -41,9 +41,26 @@ def load_model():
     MobileNetV2
     '''
 
-    resp = keras.applications.MobileNetV2(weights='imagenet') #, include_top=True
+    model = keras.applications.MobileNetV2(weights='imagenet') #, include_top=True
 
-    return resp
+    base_model = model
+
+    base_model.trainable = False
+
+    # remove a layer and add the 5 node dense later
+    inputs = tf.keras.Input(shape=(224, 224, 3))
+    number_of_outputs = 5
+
+    shaved_base_model = Model(inputs=base_model.input, outputs=base_model.layers[-2].output)
+
+    #shaved_base_model.summary()
+    #print(type(shaved_base_model))
+
+    x = shaved_base_model(inputs, training=False) #gets around the wrong type error
+    outputs = layers.Dense(number_of_outputs, activation='softmax', dtype='float32')(x) #add the additional layer as requested
+    model = models.Model(inputs, outputs)
+
+    return model
 
     raise NotImplementedError
     
@@ -254,20 +271,6 @@ def transfer_learning(train_set, eval_set, test_set, model, parameters):
     '''
     learning_rate, momentum, nesterov = parameters
 
-
-    base_model = model
-
-    
-    base_model.trainable = False
-
-    # remove a layer and add the 5 node dense later
-    inputs = tf.keras.Input(shape=(224, 224, 3))
-    number_of_outputs = len(set(train_set[1])) #should return 5
-
-    shaved_base_model = base_model(inputs, training=False)[-2].output #this should get the base_model but also remove the last layer so we can add or own
-    outputs = layers.Dense(number_of_outputs, activation='softmax', dtype='float32')(shaved_base_model) #add the additional layer as requested
-    model = models.Model(inputs, outputs)
-
     model.compile(
         optimizer=optimizers.SGD(learning_rate=learning_rate, momentum=momentum, nesterov=nesterov),
         loss='sparse_categorical_crossentropy',
@@ -284,9 +287,9 @@ def transfer_learning(train_set, eval_set, test_set, model, parameters):
     )
 
     # unfreeze
-    base_model.trainable = True
+    model.trainable = True
     fine_tune_at = 100  # anything specific
-    for layer in base_model.layers[:fine_tune_at]:
+    for layer in model.layers[:fine_tune_at]:
         layer.trainable = False
 
     model.compile(
@@ -345,18 +348,6 @@ def accelerated_learning(train_set, eval_set, test_set, model, parameters):
     #makes stuff faster
     mixed_precision.set_global_policy('mixed_float16')
 
-    base_model = model
-
-    base_model.trainable = False
-
-    # remove a layer and add the 5 node dense later
-    inputs = tf.keras.Input(shape=(224, 224, 3))
-    number_of_outputs = len(set(train_set[1])) #should return 5
-
-    shaved_base_model = base_model(inputs, training=False)[-2].output #this should get the base_model but also remove the last layer so we can add or own
-    outputs = layers.Dense(number_of_outputs, activation='softmax', dtype='float32')(shaved_base_model) #add the additional layer as requested in task sheet
-    model = models.Model(inputs, outputs)
-
     model.compile(
         optimizer=optimizers.SGD(learning_rate=learning_rate, momentum=momentum, nesterov=nesterov),
         loss='sparse_categorical_crossentropy',
@@ -395,9 +386,9 @@ def accelerated_learning(train_set, eval_set, test_set, model, parameters):
     )
 
     # unfreeze layers
-    base_model.trainable = True #correct?
+    model.trainable = True #correct?
     fine_tune_at = 100  # what to put here?
-    for layer in base_model.layers[:fine_tune_at]:
+    for layer in model.layers[:fine_tune_at]:
         layer.trainable = False
 
     model.compile(
@@ -429,6 +420,8 @@ def accelerated_learning(train_set, eval_set, test_set, model, parameters):
 
 if __name__ == "__main__":
     
+    print("code_start")
+
     model = load_model()
     X, Y = load_data("small_flower_dataset")
 
