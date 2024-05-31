@@ -11,7 +11,6 @@ Last modified 2024-05-07 by Anthony Vanderkop.
 Hopefully without introducing new bugs.
 '''
 
-
 ### LIBRARY IMPORTS HERE ###
 import os
 import keras.preprocessing
@@ -20,7 +19,7 @@ import keras.applications as ka
 import keras
 
 import tensorflow as tf #why not already imported???
-
+# Add required libraries
 from tensorflow.keras.preprocessing import image_dataset_from_directory
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras import layers, models, optimizers, metrics, mixed_precision, Model
@@ -30,7 +29,6 @@ def my_team():
     '''
     Return the list of the team members of this assignment submission as a list
     of triplet of the form (student_number, first_name, last_name)
-    
     '''
     return [(10755012, "Kenzie", "Haigh"), (10814256, "Luke", "Whitton"), (11132833, "Emma", "Wu")]
     
@@ -67,7 +65,7 @@ def load_model():
 
     return model
 
-    raise NotImplementedError
+    #raise NotImplementedError
     
 
 def load_data(path):
@@ -75,37 +73,36 @@ def load_data(path):
     Load in the dataset from its home path. Path should be a string of the path
     to the home directory the dataset is found in. Should return a numpy array
     with paired images and class labels.
-    
-    Insert a more detailed description here.
-    '''
-    
-
+    '''    
+    # find current directory and dataset path
     current_dir = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(current_dir, path)
-
+    # set image 224X224
     image_size = 224
-
+    # create dataset from the directory of images
     dataset = image_dataset_from_directory(
         path,
         image_size=(image_size, image_size),  
-        batch_size=32,
-        label_mode='int'  #categorical --> one-hot
+        batch_size=32, # 32 images per cycle 
+        label_mode='int'  #categorical --> one-hot???
+        # label are encoded as integers
     )
-
     images = []
     labels = []
-
+    # add batch images and labels
     for batch in dataset:
         batch_images, batch_labels = batch
         images.append(batch_images.numpy())
         labels.append(batch_labels.numpy())
-
+    
+    # add all images/labels together into arrays
     images = np.concatenate(images, axis=0)
     labels = np.concatenate(labels, axis=0)
 
+    # return images and labels arrays
     return images, labels
 
-    raise NotImplementedError
+    #raise NotImplementedError
     
     
 def split_data(X, Y, train_fraction, randomize=False, eval_set=True):
@@ -447,7 +444,4 @@ if __name__ == "__main__":
     
     model, metrics = accelerated_learning(train_set, eval_set, test_set, model, (learning_rate, momentum, nesterov)) #be careful this is very slow without a gpu. Like my 3080 did all 20 epochs in the time my 10700 did one epoch
 
-
-    
-    
 #########################  CODE GRAVEYARD  #############################
