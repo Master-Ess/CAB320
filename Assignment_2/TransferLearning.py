@@ -35,19 +35,22 @@ def my_team():
     return [(10755012, "Kenzie", "Haigh"), (1, "Luke", "Whitton"), (2, "Emma", "Wu")]
     raise NotImplementedError
     
-def load_model():
+def load_model():  
     '''
     Load in a model using the tf.keras.applications model and return it.
     MobileNetV2
     '''
-
+    # Pre-training on ImageNet, exclude top layer, new shape (224X224)
+    # Freeze the base model
+    # New shape for 5 classes training dataset
+    # Add the additional dense layer, update the base model
+    
     model = keras.applications.MobileNetV2(weights='imagenet') #, include_top=True
 
     base_model = model
 
     base_model.trainable = False
 
-    # remove a layer and add the 5 node dense later
     inputs = tf.keras.Input(shape=(224, 224, 3))
     number_of_outputs = 5
 
@@ -73,7 +76,10 @@ def load_data(path):
     
     Insert a more detailed description here.
     '''
-    
+    # Find the directory of the dataset
+    # Load image dataset from the directory 
+    # Image size 224X224, encoded as integers
+    # Add batch images and labels in arrays
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(current_dir, path)
@@ -114,6 +120,10 @@ def split_data(X, Y, train_fraction, randomize=False, eval_set=True):
     
     Insert a more detailed description here.
     """
+    # Whether shuffle dataset before splitting
+    # Split training and test sets
+    # Split evaluation set from test set if required
+    # Return each training, test and evaluation set arrays
 
     #remove before submit or find reference if actually needed??? Why is the arg in the function????? #USED IN REPORT PART 7
     if randomize: #not explictily referenced?
@@ -142,6 +152,17 @@ def split_data(X, Y, train_fraction, randomize=False, eval_set=True):
     
 
 def confusion_matrix(predictions, ground_truth, plot=False, all_classes=None):
+## From 'Working' ##
+def confusion_matrix(predictions, ground_truth):
+    # initial zeros matrix, size 5X5
+    # int 1: ture 0: false
+    # replace each matrix element with ground truth and prediction    
+def plot_confusion_matrix(cm, classes):
+    # initial plot components and title
+    # set x, y axis ticks and tick labels
+    # for loop to iterate over all elements confusion matrix 
+    # plot layout, x, y axis labels
+    # return display plot
     '''
     Given a set of classifier predictions and the ground truth, calculate and
     return the confusion matrix of the classifier's performance.
@@ -164,7 +185,7 @@ def confusion_matrix(predictions, ground_truth, plot=False, all_classes=None):
               Each row corresponds to a unique class in the ground truth and
               each column to a prediction of a unique class by a classifier
     '''
-    
+   
     raise NotImplementedError
     return cm
     
@@ -178,6 +199,9 @@ def precision(predictions, ground_truth):
         - precision: type np.ndarray of length c,
                      values are the precision for each class
     '''
+    # set confusion matrix
+    # precision = diagonals/sums of columns  
+    # convert any NaNs to zero
     raise NotImplementedError
     return precision
 
@@ -190,6 +214,9 @@ def recall(predictions, ground_truth):
         - recall: type np.ndarray of length c,
                      values are the recall for each class
     '''
+    # set confusion matrix
+    # recall = diagonals/sums of rows 
+    # convert any NaNs to zero
     raise NotImplementedError
     return recall
 
@@ -201,7 +228,9 @@ def f1(predictions, ground_truth):
     Outputs:
         - f1: type nd.ndarry of length c where c is the number of classes
     '''
-    
+    # calculate precision and recall
+    # f1 score = 2PR/(P+R)
+    # convert any NaNs to zero
     raise NotImplementedError
     return f1
 
@@ -224,6 +253,15 @@ def k_fold_validation(features, ground_truth, classifier, k=2):
         - sigma_metrics: np.ndarray, each value is the standard deviation of 
         the performance metrics [precision, recall, f1_score]
     '''
+    # split data in 3 sub-sets
+    # split features array
+    # split ground truth array
+    # predictions from training set
+    # obtain evaluations from predictions and test outputs Ys
+    # add evaluation results 
+    # mean (average) precision, recall and f1 score
+    # std precision, recall and f1 score
+    # return evaluation average/std matrics
     
     #split data
     ### YOUR CODE HERE ###
