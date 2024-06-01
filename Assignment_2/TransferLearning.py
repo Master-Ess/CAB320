@@ -307,6 +307,13 @@ def transfer_learning(train_set, eval_set, test_set, model, parameters):
         - metrics : list of classwise recall, precision, and f1 scores of the 
             model on the test_set (list of np.ndarray)
     '''
+    # parameters: learning rate, momentum and nesterov
+    # model training and evaluation inputs and outputs
+    # model test X inputs to obtain predicted outputs Y 
+    # find max predicted values
+    # calculate recall, precision and f1 scores 
+    # evaluated results metrics
+    
     learning_rate, momentum, nesterov = parameters
 
     model.compile(
