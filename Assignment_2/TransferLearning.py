@@ -32,7 +32,7 @@ if gpus:
         print(e)
 
 def my_team():
-    return [(10755012, "Kenzie", "Haigh"), (1, "Luke", "Whitton"), (2, "Emma", "Wu")]
+    return [(10755012, "Kenzie", "Haigh"), (1, "Luke", "Whitton"), (11132833, "Emma", "Wu")]
 
 def load_model():
     base_model = tf.keras.applications.MobileNetV2(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
