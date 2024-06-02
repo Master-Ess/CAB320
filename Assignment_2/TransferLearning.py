@@ -32,7 +32,7 @@ def my_team():
     of triplet of the form (student_number, first_name, last_name)
     
     '''
-    return [(10755012, "Kenzie", "Haigh"), (1, "Luke", "Whitton"), (2, "Emma", "Wu")]
+    return [(10755012, "Kenzie", "Haigh"), (1, "Luke", "Whitton"), (111332833, "Emma", "Wu")]
     raise NotImplementedError
     
 def load_model():  
