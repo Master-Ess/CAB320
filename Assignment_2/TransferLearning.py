@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 '''
 
 The functions and classes defined in this module will be called by a marker script. 
@@ -11,62 +10,50 @@ Last modified 2024-05-07 by Anthony Vanderkop.
 Hopefully without introducing new bugs.
 '''
 
-
 ### LIBRARY IMPORTS HERE ###
 import os
-import keras.preprocessing
 import numpy as np
-import keras.applications as ka
-import keras
-
-import tensorflow as tf #why not already imported???
-
+import tensorflow as tf
 from tensorflow.keras.preprocessing import image_dataset_from_directory
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras import layers, models, optimizers, metrics, mixed_precision, Model
-from sklearn.metrics import recall_score, precision_score, f1_score #check that we can use this module
-    
+
+from tensorflow.keras import layers, models, optimizers, mixed_precision
+from sklearn.model_selection import KFold
+import matplotlib.pyplot as plt
+import itertools
+
+# Ensure GPU memory growth is enabled
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    try:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+    except RuntimeError as e:
+        print(e)
+
+
 def my_team():
-    '''
-    Return the list of the team members of this assignment submission as a list
-    of triplet of the form (student_number, first_name, last_name)
-    
-    '''
-    return [(10755012, "Kenzie", "Haigh"), (1, "Luke", "Whitton"), (111332833, "Emma", "Wu")]
-    raise NotImplementedError
-    
-def load_model():  
-    '''
-    Load in a model using the tf.keras.applications model and return it.
-    MobileNetV2
-    '''
-    # Pre-training on ImageNet, exclude top layer, new shape (224X224)
-    # Freeze the base model
-    # New shape for 5 classes training dataset
-    # Add the additional dense layer, update the base model
-    
-    model = keras.applications.MobileNetV2(weights='imagenet') #, include_top=True
+    return [(10755012, "Kenzie", "Haigh"), (1, "Luke", "Whitton"), (11132833, "Emma", "Wu")]
 
-    base_model = model
-
+def load_model():
+    base_model = tf.keras.applications.MobileNetV2(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
     base_model.trainable = False
 
     inputs = tf.keras.Input(shape=(224, 224, 3))
-    number_of_outputs = 5
-
-    shaved_base_model = Model(inputs=base_model.input, outputs=base_model.layers[-2].output)
-
-    #shaved_base_model.summary()
-    #print(type(shaved_base_model))
-
-    x = shaved_base_model(inputs, training=False) #gets around the wrong type error
-    outputs = layers.Dense(number_of_outputs, activation='softmax', dtype='float32')(x) #add the additional layer as requested
+    x = base_model(inputs, training=False)
+    x = layers.GlobalAveragePooling2D()(x)
+    outputs = layers.Dense(5, activation='softmax')(x)
     model = models.Model(inputs, outputs)
 
     return model
 
-    raise NotImplementedError
-    
+def compile_model(model, learning_rate=0.001, momentum=0.0, nesterov=False):
+    model.compile(
+        optimizer=optimizers.SGD(learning_rate=learning_rate, momentum=momentum, nesterov=nesterov),
+        loss='sparse_categorical_crossentropy',
+        metrics=['accuracy']
+    )
+    return model
 
 def load_data(path):
     '''
@@ -80,22 +67,18 @@ def load_data(path):
     # Load image dataset from the directory 
     # Image size 224X224, encoded as integers
     # Add batch images and labels in arrays
-
     current_dir = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(current_dir, path)
 
     image_size = 224
-
     dataset = image_dataset_from_directory(
         path,
-        image_size=(image_size, image_size),  
-        batch_size=32,
-        label_mode='int'  #categorical --> one-hot
+        image_size=(image_size, image_size),
+        batch_size=16,  # Reduced batch size
+        label_mode='int'
     )
 
-    images = []
-    labels = []
-
+    images, labels = [], []
     for batch in dataset:
         batch_images, batch_labels = batch
         images.append(batch_images.numpy())
@@ -106,9 +89,6 @@ def load_data(path):
 
     return images, labels
 
-    raise NotImplementedError
-    
-    
 def split_data(X, Y, train_fraction, randomize=False, eval_set=True):
     """
     Split the data into training and testing sets. If eval_set is True, also create
@@ -130,10 +110,8 @@ def split_data(X, Y, train_fraction, randomize=False, eval_set=True):
         # shufle
         ind = np.arange(X.shape[0])
         np.random.shuffle(ind)
-        X = X[ind]
-        Y = Y[ind]
-    
-    
+        X, Y = X[ind], Y[ind]
+
     num_train = int(train_fraction * X.shape[0])
     X_train, Y_train = X[:num_train], Y[:num_train]
     X_test, Y_test = X[num_train:], Y[num_train:]
@@ -143,149 +121,96 @@ def split_data(X, Y, train_fraction, randomize=False, eval_set=True):
         num_eval = num_test // 2
         X_eval, Y_eval = X_test[:num_eval], Y_test[:num_eval]
         X_test, Y_test = X_test[num_eval:], Y_test[num_eval:]
-        
+
         return (X_train, Y_train, X_test, Y_test, X_eval, Y_eval)
-    
+
     return (X_train, Y_train, X_test, Y_test)
-    #raise NotImplementedError
-    
-    
 
-def confusion_matrix(predictions, ground_truth, plot=False, all_classes=None):
-## From 'Working' ##
+
 def confusion_matrix(predictions, ground_truth):
-    # initial zeros matrix, size 5X5
-    # int 1: ture 0: false
-    # replace each matrix element with ground truth and prediction    
-def plot_confusion_matrix(cm, classes):
-    # initial plot components and title
-    # set x, y axis ticks and tick labels
-    # for loop to iterate over all elements confusion matrix 
-    # plot layout, x, y axis labels
-    # return display plot
-    '''
-    Given a set of classifier predictions and the ground truth, calculate and
-    return the confusion matrix of the classifier's performance.
-
-    Inputs:
-        - predictions: np.ndarray of length n where n is the number of data
-                       points in the dataset being classified and each value
-                       is the class predicted by the classifier
-        - ground_truth: np.ndarray of length n where each value is the correct
-                        value of the class predicted by the classifier
-        - plot: boolean. If true, create a plot of the confusion matrix with
-                either matplotlib or with sklearn.
-        - classes: a set of all unique classes that are expected in the dataset.
-                   If None is provided we assume all relevant classes are in 
-                   the ground_truth instead.
-    Outputs:
-        - cm: type np.ndarray of shape (c,c) where c is the number of unique  
-              classes in the ground_truth
-              
-              Each row corresponds to a unique class in the ground truth and
-              each column to a prediction of a unique class by a classifier
-    '''
-   
-    raise NotImplementedError
+    num_classes = max(int(max(predictions)), int(max(ground_truth))) + 1
+    cm = np.zeros((num_classes, num_classes), dtype=int)
+    for true, pred in zip(ground_truth, predictions):
+        cm[int(true), int(pred)] += 1  # Ensure indices are integers
     return cm
-    
+
+def plot_confusion_matrix(cm, classes):
+    plt.figure(figsize=(8, 6))
+    plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+    plt.title('Confusion matrix')
+    plt.colorbar()
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes, rotation=45)
+    plt.yticks(tick_marks, classes)
+
+    fmt = 'd'
+    thresh = cm.max() / 2.
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        plt.text(j, i, format(cm[i, j], fmt),
+                 horizontalalignment="center",
+                 color="white" if cm[i, j] > thresh else "black")
+
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+    plt.show()
 
 def precision(predictions, ground_truth):
-    '''
-    Similar to the confusion matrix, now calculate the classifier's precision
-    
-    Inputs: see confusion_matrix above
-    Outputs:
-        - precision: type np.ndarray of length c,
-                     values are the precision for each class
-    '''
-    # set confusion matrix
-    # precision = diagonals/sums of columns  
-    # convert any NaNs to zero
-    raise NotImplementedError
-    return precision
+    cm = confusion_matrix(predictions, ground_truth)
+    precision_scores = np.diag(cm) / np.sum(cm, axis=0)
+    return np.nan_to_num(precision_scores)
 
 def recall(predictions, ground_truth):
-    '''
-    Similar to the confusion matrix, now calculate the classifier's recall
-    
-    Inputs: see confusion_matrix above
-    Outputs:
-        - recall: type np.ndarray of length c,
-                     values are the recall for each class
-    '''
-    # set confusion matrix
-    # recall = diagonals/sums of rows 
-    # convert any NaNs to zero
-    raise NotImplementedError
-    return recall
+    cm = confusion_matrix(predictions, ground_truth)
+    recall_scores = np.diag(cm) / np.sum(cm, axis=1)
+    return np.nan_to_num(recall_scores)
 
 def f1(predictions, ground_truth):
-    '''
-    Similar to the confusion matrix, now calculate the classifier's f1 score
-    Inputs:
-        - see confusion_matrix above for predictions, ground_truth
-    Outputs:
-        - f1: type nd.ndarry of length c where c is the number of classes
-    '''
-    # calculate precision and recall
-    # f1 score = 2PR/(P+R)
-    # convert any NaNs to zero
-    raise NotImplementedError
-    return f1
+    prec = precision(predictions, ground_truth)
+    rec = recall(predictions, ground_truth)
+    f1_scores = 2 * (prec * rec) / (prec + rec)
+    return np.nan_to_num(f1_scores)
 
-def k_fold_validation(features, ground_truth, classifier, k=2):
-    '''
-    Inputs:
-        - features: np.ndarray of features in the dataset
-        - ground_truth: np.ndarray of class values associated with the features
-        - fit_func: f
-        - classifier: class object with both fit() and predict() methods which
-        can be applied to subsets of the features and ground_truth inputs.
-        - predict_func: function, calling predict_func(features) should return
-        a numpy array of class predictions which can in turn be input to the 
-        functions in this script to calculate performance metrics.
-        - k: int, number of sub-sets to partition the data into. default is k=2
-    Outputs:
-        - avg_metrics: np.ndarray of shape (3, c) where c is the number of classes.
-        The first row is the average precision for each class over the k
-        validation steps. Second row is recall and third row is f1 score.
-        - sigma_metrics: np.ndarray, each value is the standard deviation of 
-        the performance metrics [precision, recall, f1_score]
-    '''
-    # split data in 3 sub-sets
-    # split features array
-    # split ground truth array
-    # predictions from training set
-    # obtain evaluations from predictions and test outputs Ys
-    # add evaluation results 
-    # mean (average) precision, recall and f1 score
-    # std precision, recall and f1 score
-    # return evaluation average/std matrics
-    
-    #split data
-    ### YOUR CODE HERE ###
-    
-    #go through each partition and use it as a test set.
-    for partition_no in range(k):
-        #determine test and train sets
-        ### YOUR CODE HERE###
+def k_fold_validation(features, ground_truth, classifier_fn, k=3):
+    kf = KFold(n_splits=k, shuffle=True)
+    all_precisions, all_recalls, all_f1s = [], [], []
+
+    for train_index, test_index in kf.split(features):
+        train_X, test_X = features[train_index], features[test_index]
+        train_Y, test_Y = ground_truth[train_index], ground_truth[test_index]
+
+        # Reinitialize the classifier for each fold
+        classifier = classifier_fn()
+        classifier = compile_model(classifier)  # Compile the model
         
-        #fit model to training data and perform predictions on the test set
-        classifier.fit(train_features, train_classes)
-        predictions = classifier.predict(test_features)
+        # Fit the classifier
+        classifier.fit(train_X, train_Y, epochs=10, batch_size=32, verbose=0)
         
-        #calculate performance metrics
-        ### YOUR CODE HERE###
-    
-    #perform statistical analyses on metrics
-    ### YOUR CODE HERE###
-    
-    raise NotImplementedError
+        # Predict on the test set
+        predictions = classifier.predict(test_X)
+        predictions = np.argmax(predictions, axis=1)  # Get the class with highest probability
+        
+        # Calculate precision, recall, and f1 scores
+        precision_scores = precision(predictions, test_Y)
+        recall_scores = recall(predictions, test_Y)
+        f1_scores = f1(predictions, test_Y)
+
+        all_precisions.append(precision_scores)
+        all_recalls.append(recall_scores)
+        all_f1s.append(f1_scores)
+
+    avg_precision = np.mean(all_precisions, axis=0)
+    avg_recall = np.mean(all_recalls, axis=0)
+    avg_f1 = np.mean(all_f1s, axis=0)
+
+    sigma_precision = np.std(all_precisions, axis=0)
+    sigma_recall = np.std(all_recalls, axis=0)
+    sigma_f1 = np.std(all_f1s, axis=0)
+
+    avg_metrics = np.array([avg_precision, avg_recall, avg_f1])
+    sigma_metrics = np.array([sigma_precision, sigma_recall, sigma_f1])
+
     return avg_metrics, sigma_metrics
-
-
-##################### MAIN ASSIGNMENT CODE FROM HERE ######################
 
 def transfer_learning(train_set, eval_set, test_set, model, parameters):
     '''
@@ -313,93 +238,37 @@ def transfer_learning(train_set, eval_set, test_set, model, parameters):
     # find max predicted values
     # calculate recall, precision and f1 scores 
     # evaluated results metrics
-    
     learning_rate, momentum, nesterov = parameters
 
-    model.compile(
-        optimizer=optimizers.SGD(learning_rate=learning_rate, momentum=momentum, nesterov=nesterov),
-        loss='sparse_categorical_crossentropy',
-        metrics=['accuracy']
-    )
+    model = compile_model(model, learning_rate, momentum, nesterov)
 
-    # Train
     X_train, Y_train = train_set
     X_eval, Y_eval = eval_set
-    model.fit(
+    history = model.fit(
         X_train, Y_train,
-        epochs=10, #check 
+        epochs=10,
         validation_data=(X_eval, Y_eval)
     )
 
-    # unfreeze
-    model.trainable = True
-    fine_tune_at = 100  # anything specific
-    for layer in model.layers[:fine_tune_at]:
-        layer.trainable = False
-
-    model.compile(
-        optimizer=optimizers.SGD(learning_rate=learning_rate / 10, momentum=momentum, nesterov=nesterov),
-        loss='sparse_categorical_crossentropy',
-        metrics=['accuracy']
-    )
-
-    # more training with new variables
-    model.fit(
-        X_train, Y_train,
-        epochs=10,  
-        validation_data=(X_eval, Y_eval)
-    )
-
-    # Evaluate the model on the test set
     X_test, Y_test = test_set
     Y_pred = model.predict(X_test)
     Y_pred_classes = np.argmax(Y_pred, axis=1)
 
-    # Calculate classwise recall, precision, and f1 scores
-    recall = recall_score(Y_test, Y_pred_classes, average=None)
-    precision = precision_score(Y_test, Y_pred_classes, average=None)
-    f1 = f1_score(Y_test, Y_pred_classes, average=None)
+    recall_scores = recall(Y_pred_classes, Y_test)
+    precision_scores = precision(Y_pred_classes, Y_test)
+    f1_scores = f1(Y_pred_classes, Y_test)
 
-    metrics = [recall, precision, f1]
+    metrics = [recall_scores, precision_scores, f1_scores]
 
-    return model, metrics
+    return model, metrics, history, Y_pred_classes
 
-
-    
 def accelerated_learning(train_set, eval_set, test_set, model, parameters):
-    '''
-    Implement and perform accelerated transfer learning here.
-
-    Inputs:
-        - train_set: list or tuple of the training images and labels in the
-            form (images, labels) for training the classifier
-        - eval_set: list or tuple of the images and labels used in evaluating
-            the model during training, in the form (images, labels)
-        - test_set: list or tuple of the training images and labels in the
-            form (images, labels) for testing the classifier after training
-        - model: an instance of tf.keras.applications.MobileNetV2
-        - parameters: list or tuple of parameters to use during training:
-            (learning_rate, momentum, nesterov)
-
-
-    Outputs:
-        - model : an instance of tf.keras.applications.MobileNetV2
-        - metrics : list of classwise recall, precision, and f1 scores of the 
-            model on the test_set (list of np.ndarray)
-
-    '''
     learning_rate, momentum, nesterov = parameters
 
-    #makes stuff faster
     mixed_precision.set_global_policy('mixed_float16')
 
-    model.compile(
-        optimizer=optimizers.SGD(learning_rate=learning_rate, momentum=momentum, nesterov=nesterov),
-        loss='sparse_categorical_crossentropy',
-        metrics=['accuracy']
-    )
+    model = compile_model(model, learning_rate, momentum, nesterov)
 
-    # data augementation - do we chuck anything specific here or not? Can i just have whatever variables i want? 
     datagen = ImageDataGenerator(
         rotation_range=40,
         width_shift_range=0.2,
@@ -413,7 +282,6 @@ def accelerated_learning(train_set, eval_set, test_set, model, parameters):
     X_train, Y_train = train_set
     X_eval, Y_eval = eval_set
 
-    # learning rate scheduler 
     def lr_scheduler(epoch, lr):
         if epoch < 10:
             return lr
@@ -422,72 +290,98 @@ def accelerated_learning(train_set, eval_set, test_set, model, parameters):
 
     callback = tf.keras.callbacks.LearningRateScheduler(lr_scheduler)
 
-    # train
-    model.fit(
+    history = model.fit(
         datagen.flow(X_train, Y_train, batch_size=32),
-        epochs=20,  # check number
+        epochs=20,
         validation_data=(X_eval, Y_eval),
         callbacks=[callback]
     )
 
-    # unfreeze layers
-    model.trainable = True #correct?
-    fine_tune_at = 100  # what to put here?
-    for layer in model.layers[:fine_tune_at]:
-        layer.trainable = False
-
-    model.compile(
-        optimizer=optimizers.SGD(learning_rate=learning_rate / 10, momentum=momentum, nesterov=nesterov),
-        loss='sparse_categorical_crossentropy',
-        metrics=['accuracy']
-    )
-
-    # Continue training with fine-tuning and data augmentation
-    model.fit(
-        datagen.flow(X_train, Y_train, batch_size=32),
-        epochs=10,  # check number
-        validation_data=(X_eval, Y_eval),
-        callbacks=[callback]
-    )
-
-    # eval
     X_test, Y_test = test_set
     Y_pred = model.predict(X_test)
     Y_pred_classes = np.argmax(Y_pred, axis=1)
 
-    recall = recall_score(Y_test, Y_pred_classes, average=None)
-    precision = precision_score(Y_test, Y_pred_classes, average=None)
-    f1 = f1_score(Y_test, Y_pred_classes, average=None)
+    recall_scores = recall(Y_pred_classes, Y_test)
+    precision_scores = precision(Y_pred_classes, Y_test)
+    f1_scores = f1(Y_pred_classes, Y_test)
 
-    metrics = [recall, precision, f1]
+    metrics = [recall_scores, precision_scores, f1_scores]
 
-    return model, metrics
+    return model, metrics, history, Y_pred_classes
+
+def plot_history(history, title="Training and Validation Metrics"):
+    acc = history.history['accuracy']
+    val_acc = history.history['val_accuracy']
+    loss = history.history['loss']
+    val_loss = history.history['val_loss']
+    epochs = range(len(acc))
+
+    plt.figure(figsize=(12, 4))
+    plt.subplot(1, 2, 1)
+    plt.plot(epochs, acc, 'bo', label='Training acc')
+    plt.plot(epochs, val_acc, 'b', label='Validation acc')
+    plt.title('Training and validation accuracy')
+    plt.legend()
+
+    plt.subplot(1, 2, 2)
+    plt.plot(epochs, loss, 'bo', label='Training loss')
+    plt.plot(epochs, val_loss, 'b', label='Validation loss')
+    plt.title('Training and validation loss')
+    plt.legend()
+
+    plt.suptitle(title)
+    plt.show()
 
 if __name__ == "__main__":
-    
     print("code_start")
 
-    model = load_model()
+    model_fn = load_model
     X, Y = load_data("small_flower_dataset")
 
-    split = 0.8 #80% referenced in assignment
-    X_train, Y_train, X_test, Y_test, X_eval, Y_eval = split_data(X, Y, split, eval_set=True) #
+    split = 0.8
+    X_train, Y_train, X_test, Y_test, X_eval, Y_eval = split_data(X, Y, split, eval_set=True)
     
     train_set = (X_train, Y_train)
     eval_set = (X_eval, Y_eval)
     test_set = (X_test, Y_test)
 
-    learning_rate = 0.001
-    momentum = 0.0
-    nesterov = False
+    learning_rates = [0.1, 0.01, 0.001]
+    best_lr = 0.001
+    best_metrics = None
+    best_model = None
+    best_history = None
+    best_predictions = None
 
+    for lr in learning_rates:
+        model = load_model()
+        model, metrics, history, predictions = transfer_learning(train_set, eval_set, test_set, model, (lr, 0.0, False))
+        print(f"Learning rate: {lr}, Transfer Learning Metrics:", metrics)
+        plot_history(history, title=f"Transfer Learning - Training with lr={lr}")
+        
+        if best_metrics is None or metrics[2].mean() > best_metrics[2].mean():
+            best_lr = lr
+            best_metrics = metrics
+            best_model = model
+            best_history = history
+            best_predictions = predictions
 
+    print(f"Best learning rate: {best_lr}")
 
-    model, metrics = transfer_learning(train_set, eval_set, test_set, model,(learning_rate, momentum, nesterov))
-    
-    model, metrics = accelerated_learning(train_set, eval_set, test_set, model, (learning_rate, momentum, nesterov)) #be careful this is very slow without a gpu. Like my 3080 did all 20 epochs in the time my 10700 did one epoch
+    num_classes = len(np.unique(Y_test))
+    cm = confusion_matrix(best_predictions, Y_test)
+    plot_confusion_matrix(cm, classes=list(range(num_classes)))
 
+    precision_scores = precision(best_predictions, Y_test)
+    recall_scores = recall(best_predictions, Y_test)
+    f1_scores = f1(best_predictions, Y_test)
 
-    
-    
-#########################  CODE GRAVEYARD  #############################
+    print(f"Precision: {precision_scores}")
+    print(f"Recall: {recall_scores}")
+    print(f"F1 Score: {f1_scores}")
+
+    plot_history(best_history, title=f"Transfer Learning - Training with best lr={best_lr}")
+
+    # K-fold validation with k=3
+    avg_metrics, sigma_metrics = k_fold_validation(X, Y, model_fn, k=3)
+    print(f"K-Fold Validation Metrics (k=3): {avg_metrics}")
+    print(f"Standard Deviation of Metrics (k=3): {sigma_metrics}")
