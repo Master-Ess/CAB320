@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 '''
 
 The functions and classes defined in this module will be called by a marker script. 
@@ -46,6 +45,14 @@ def load_model():
 
     return model
 
+def compile_model(model, learning_rate=0.001, momentum=0.0, nesterov=False):
+    model.compile(
+        optimizer=optimizers.SGD(learning_rate=learning_rate, momentum=momentum, nesterov=nesterov),
+        loss='sparse_categorical_crossentropy',
+        metrics=['accuracy']
+    )
+    return model
+
 def load_data(path):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(current_dir, path)
@@ -90,9 +97,10 @@ def split_data(X, Y, train_fraction, randomize=False, eval_set=True):
     return (X_train, Y_train, X_test, Y_test)
 
 def confusion_matrix(predictions, ground_truth):
-    cm = np.zeros((5, 5), dtype=int)
+    num_classes = max(int(max(predictions)), int(max(ground_truth))) + 1
+    cm = np.zeros((num_classes, num_classes), dtype=int)
     for true, pred in zip(ground_truth, predictions):
-        cm[true, pred] += 1
+        cm[int(true), int(pred)] += 1  # Ensure indices are integers
     return cm
 
 def plot_confusion_matrix(cm, classes):
@@ -132,7 +140,7 @@ def f1(predictions, ground_truth):
     f1_scores = 2 * (prec * rec) / (prec + rec)
     return np.nan_to_num(f1_scores)
 
-def k_fold_validation(features, ground_truth, classifier, k=3):
+def k_fold_validation(features, ground_truth, classifier_fn, k=3):
     kf = KFold(n_splits=k, shuffle=True)
     all_precisions, all_recalls, all_f1s = [], [], []
 
@@ -140,9 +148,18 @@ def k_fold_validation(features, ground_truth, classifier, k=3):
         train_X, test_X = features[train_index], features[test_index]
         train_Y, test_Y = ground_truth[train_index], ground_truth[test_index]
 
-        classifier.fit(train_X, train_Y)
+        # Reinitialize the classifier for each fold
+        classifier = classifier_fn()
+        classifier = compile_model(classifier)  # Compile the model
+        
+        # Fit the classifier
+        classifier.fit(train_X, train_Y, epochs=10, batch_size=32, verbose=0)
+        
+        # Predict on the test set
         predictions = classifier.predict(test_X)
-
+        predictions = np.argmax(predictions, axis=1)  # Get the class with highest probability
+        
+        # Calculate precision, recall, and f1 scores
         precision_scores = precision(predictions, test_Y)
         recall_scores = recall(predictions, test_Y)
         f1_scores = f1(predictions, test_Y)
@@ -167,11 +184,7 @@ def k_fold_validation(features, ground_truth, classifier, k=3):
 def transfer_learning(train_set, eval_set, test_set, model, parameters):
     learning_rate, momentum, nesterov = parameters
 
-    model.compile(
-        optimizer=optimizers.SGD(learning_rate=learning_rate, momentum=momentum, nesterov=nesterov),
-        loss='sparse_categorical_crossentropy',
-        metrics=['accuracy']
-    )
+    model = compile_model(model, learning_rate, momentum, nesterov)
 
     X_train, Y_train = train_set
     X_eval, Y_eval = eval_set
@@ -198,11 +211,7 @@ def accelerated_learning(train_set, eval_set, test_set, model, parameters):
 
     mixed_precision.set_global_policy('mixed_float16')
 
-    model.compile(
-        optimizer=optimizers.SGD(learning_rate=learning_rate, momentum=momentum, nesterov=nesterov),
-        loss='sparse_categorical_crossentropy',
-        metrics=['accuracy']
-    )
+    model = compile_model(model, learning_rate, momentum, nesterov)
 
     datagen = ImageDataGenerator(
         rotation_range=40,
@@ -270,7 +279,7 @@ def plot_history(history, title="Training and Validation Metrics"):
 if __name__ == "__main__":
     print("code_start")
 
-    model = load_model()
+    model_fn = load_model
     X, Y = load_data("small_flower_dataset")
 
     split = 0.8
@@ -302,8 +311,9 @@ if __name__ == "__main__":
 
     print(f"Best learning rate: {best_lr}")
 
+    num_classes = len(np.unique(Y_test))
     cm = confusion_matrix(best_predictions, Y_test)
-    plot_confusion_matrix(cm, classes=[0, 1, 2, 3, 4])
+    plot_confusion_matrix(cm, classes=list(range(num_classes)))
 
     precision_scores = precision(best_predictions, Y_test)
     recall_scores = recall(best_predictions, Y_test)
@@ -316,6 +326,6 @@ if __name__ == "__main__":
     plot_history(best_history, title=f"Transfer Learning - Training with best lr={best_lr}")
 
     # K-fold validation with k=3
-    avg_metrics, sigma_metrics = k_fold_validation(X, Y, model, k=3)
+    avg_metrics, sigma_metrics = k_fold_validation(X, Y, model_fn, k=3)
     print(f"K-Fold Validation Metrics (k=3): {avg_metrics}")
     print(f"Standard Deviation of Metrics (k=3): {sigma_metrics}")
