@@ -33,9 +33,18 @@ if gpus:
 
 
 def my_team():
+    '''
+    Return the list of the team members of this assignment submission as a list
+    of triplet of the form (student_number, first_name, last_name)
+    
+    '''
     return [(10755012, "Kenzie", "Haigh"), (10814256, "Luke", "Whitton"), (11132833, "Emma", "Wu")]
 
 def load_model():
+    '''
+    Load in a model using the tf.keras.applications model and return it.
+    Insert a more detailed description here
+    '''
     base_model = tf.keras.applications.MobileNetV2(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
     base_model.trainable = False
 
@@ -128,6 +137,28 @@ def split_data(X, Y, train_fraction, randomize=False, eval_set=True):
 
 
 def confusion_matrix(predictions, ground_truth):
+    '''
+    Given a set of classifier predictions and the ground truth, calculate and
+    return the confusion matrix of the classifier's performance.
+
+    Inputs:
+        - predictions: np.ndarray of length n where n is the number of data
+                       points in the dataset being classified and each value
+                       is the class predicted by the classifier
+        - ground_truth: np.ndarray of length n where each value is the correct
+                        value of the class predicted by the classifier
+        - plot: boolean. If true, create a plot of the confusion matrix with
+                either matplotlib or with sklearn.
+        - classes: a set of all unique classes that are expected in the dataset.
+                   If None is provided we assume all relevant classes are in 
+                   the ground_truth instead.
+    Outputs:
+        - cm: type np.ndarray of shape (c,c) where c is the number of unique  
+              classes in the ground_truth
+              
+              Each row corresponds to a unique class in the ground truth and
+              each column to a prediction of a unique class by a classifier
+    '''
     num_classes = max(int(max(predictions)), int(max(ground_truth))) + 1
     cm = np.zeros((num_classes, num_classes), dtype=int)
     for true, pred in zip(ground_truth, predictions):
@@ -156,22 +187,64 @@ def plot_confusion_matrix(cm, classes):
     plt.show()
 
 def precision(predictions, ground_truth):
+    '''
+    Similar to the confusion matrix, now calculate the classifier's precision
+    
+    Inputs: see confusion_matrix above
+    Outputs:
+        - precision: type np.ndarray of length c,
+                     values are the precision for each class
+    '''
     cm = confusion_matrix(predictions, ground_truth)
     precision_scores = np.diag(cm) / np.sum(cm, axis=0)
     return np.nan_to_num(precision_scores)
 
 def recall(predictions, ground_truth):
+    '''
+    Similar to the confusion matrix, now calculate the classifier's recall
+    
+    Inputs: see confusion_matrix above
+    Outputs:
+        - recall: type np.ndarray of length c,
+                     values are the recall for each class
+    '''
     cm = confusion_matrix(predictions, ground_truth)
     recall_scores = np.diag(cm) / np.sum(cm, axis=1)
     return np.nan_to_num(recall_scores)
 
 def f1(predictions, ground_truth):
+    '''
+    Similar to the confusion matrix, now calculate the classifier's f1 score
+    Inputs:
+        - see confusion_matrix above for predictions, ground_truth
+    Outputs:
+        - f1: type nd.ndarry of length c where c is the number of classes
+    '''
     prec = precision(predictions, ground_truth)
     rec = recall(predictions, ground_truth)
     f1_scores = 2 * (prec * rec) / (prec + rec)
     return np.nan_to_num(f1_scores)
 
 def k_fold_validation(features, ground_truth, classifier_fn, k=3):
+    '''
+    Inputs:
+        - features: np.ndarray of features in the dataset
+        - ground_truth: np.ndarray of class values associated with the features
+        - fit_func: f
+        - classifier: class object with both fit() and predict() methods which
+        can be applied to subsets of the features and ground_truth inputs.
+        - predict_func: function, calling predict_func(features) should return
+        a numpy array of class predictions which can in turn be input to the 
+        functions in this script to calculate performance metrics.
+        - k: int, number of sub-sets to partition the data into. default is k=2
+    Outputs:
+        - avg_metrics: np.ndarray of shape (3, c) where c is the number of classes.
+        The first row is the average precision for each class over the k
+        validation steps. Second row is recall and third row is f1 score.
+        - sigma_metrics: np.ndarray, each value is the standard deviation of 
+        the performance metrics [precision, recall, f1_score]
+    '''
+
     kf = KFold(n_splits=k, shuffle=True)
     all_precisions, all_recalls, all_f1s = [], [], []
 
@@ -179,18 +252,15 @@ def k_fold_validation(features, ground_truth, classifier_fn, k=3):
         train_X, test_X = features[train_index], features[test_index]
         train_Y, test_Y = ground_truth[train_index], ground_truth[test_index]
 
-        # Reinitialize the classifier for each fold
-        classifier = classifier_fn()
-        classifier = compile_model(classifier)  # Compile the model
+        classifier = classifier_fn() #Reinitialise the classifier for each fold
+        classifier = compile_model(classifier)
         
-        # Fit the classifier
         classifier.fit(train_X, train_Y, epochs=10, batch_size=32, verbose=0)
         
-        # Predict on the test set
         predictions = classifier.predict(test_X)
         predictions = np.argmax(predictions, axis=1)  # Get the class with highest probability
         
-        # Calculate precision, recall, and f1 scores
+        #Calculate precision, recall, and f1 scores
         precision_scores = precision(predictions, test_Y)
         recall_scores = recall(predictions, test_Y)
         f1_scores = f1(predictions, test_Y)
@@ -264,6 +334,28 @@ def transfer_learning(train_set, eval_set, test_set, model, parameters):
     return model, metrics, history, Y_pred_classes
 
 def accelerated_learning(train_set, eval_set, test_set, model, parameters):
+    '''
+    Implement and perform accelerated transfer learning here.
+
+    Inputs:
+        - train_set: list or tuple of the training images and labels in the
+            form (images, labels) for training the classifier
+        - eval_set: list or tuple of the images and labels used in evaluating
+            the model during training, in the form (images, labels)
+        - test_set: list or tuple of the training images and labels in the
+            form (images, labels) for testing the classifier after training
+        - model: an instance of tf.keras.applications.MobileNetV2
+        - parameters: list or tuple of parameters to use during training:
+            (learning_rate, momentum, nesterov)
+
+
+    Outputs:
+        - model : an instance of tf.keras.applications.MobileNetV2
+        - metrics : list of classwise recall, precision, and f1 scores of the 
+            model on the test_set (list of np.ndarray)
+
+    '''
+    
     learning_rate, momentum, nesterov = parameters
 
     mixed_precision.set_global_policy('mixed_float16')
