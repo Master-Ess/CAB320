@@ -33,7 +33,7 @@ if gpus:
 
 
 def my_team():
-    return [(10755012, "Kenzie", "Haigh"), (1, "Luke", "Whitton"), (11132833, "Emma", "Wu")]
+    return [(10755012, "Kenzie", "Haigh"), (10814256, "Luke", "Whitton"), (11132833, "Emma", "Wu")]
 
 def load_model():
     base_model = tf.keras.applications.MobileNetV2(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
@@ -70,11 +70,11 @@ def load_data(path):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(current_dir, path)
 
-    image_size = 224
+    image_size = 224 #assumes images are square
     dataset = image_dataset_from_directory(
         path,
-        image_size=(image_size, image_size),
-        batch_size=16,  # Reduced batch size
+        image_size=(image_size, image_size), #assumes images are square
+        batch_size=16,  
         label_mode='int'
     )
 
@@ -106,7 +106,7 @@ def split_data(X, Y, train_fraction, randomize=False, eval_set=True):
     # Return each training, test and evaluation set arrays
 
     #remove before submit or find reference if actually needed??? Why is the arg in the function????? #USED IN REPORT PART 7
-    if randomize: #not explictily referenced?
+    if randomize: 
         # shufle
         ind = np.arange(X.shape[0])
         np.random.shuffle(ind)
@@ -238,15 +238,16 @@ def transfer_learning(train_set, eval_set, test_set, model, parameters):
     # find max predicted values
     # calculate recall, precision and f1 scores 
     # evaluated results metrics
+
     learning_rate, momentum, nesterov = parameters
 
-    model = compile_model(model, learning_rate, momentum, nesterov)
+    model = compile_model(model, learning_rate, momentum, nesterov) #should i rename model here or keep it as just model for the variable that gets assigned? Like its overwritting a variable, surely this is bad practice
 
     X_train, Y_train = train_set
     X_eval, Y_eval = eval_set
     history = model.fit(
         X_train, Y_train,
-        epochs=10,
+        epochs=10, #does this need to be a specific number?
         validation_data=(X_eval, Y_eval)
     )
 
@@ -269,7 +270,7 @@ def accelerated_learning(train_set, eval_set, test_set, model, parameters):
 
     model = compile_model(model, learning_rate, momentum, nesterov)
 
-    datagen = ImageDataGenerator(
+    datagen = ImageDataGenerator( #do these need to be specific numbers?
         rotation_range=40,
         width_shift_range=0.2,
         height_shift_range=0.2,
@@ -292,7 +293,7 @@ def accelerated_learning(train_set, eval_set, test_set, model, parameters):
 
     history = model.fit(
         datagen.flow(X_train, Y_train, batch_size=32),
-        epochs=20,
+        epochs=20, #does this need to be a specific number?
         validation_data=(X_eval, Y_eval),
         callbacks=[callback]
     )
@@ -333,7 +334,7 @@ def plot_history(history, title="Training and Validation Metrics"):
     plt.show()
 
 if __name__ == "__main__":
-    print("code_start")
+    #print("code_start")
 
     model_fn = load_model
     X, Y = load_data("small_flower_dataset")
