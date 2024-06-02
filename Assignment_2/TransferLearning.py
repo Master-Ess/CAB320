@@ -16,6 +16,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras.preprocessing import image_dataset_from_directory
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
 from tensorflow.keras import layers, models, optimizers, mixed_precision
 from sklearn.model_selection import KFold
 import matplotlib.pyplot as plt
@@ -29,6 +30,7 @@ if gpus:
             tf.config.experimental.set_memory_growth(gpu, True)
     except RuntimeError as e:
         print(e)
+
 
 def my_team():
     return [(10755012, "Kenzie", "Haigh"), (1, "Luke", "Whitton"), (11132833, "Emma", "Wu")]
@@ -54,6 +56,17 @@ def compile_model(model, learning_rate=0.001, momentum=0.0, nesterov=False):
     return model
 
 def load_data(path):
+    '''
+    Load in the dataset from its home path. Path should be a string of the path
+    to the home directory the dataset is found in. Should return a numpy array
+    with paired images and class labels.
+    
+    Insert a more detailed description here.
+    '''
+    # Find the directory of the dataset
+    # Load image dataset from the directory 
+    # Image size 224X224, encoded as integers
+    # Add batch images and labels in arrays
     current_dir = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(current_dir, path)
 
@@ -77,7 +90,24 @@ def load_data(path):
     return images, labels
 
 def split_data(X, Y, train_fraction, randomize=False, eval_set=True):
-    if randomize:
+    """
+    Split the data into training and testing sets. If eval_set is True, also create
+    an evaluation dataset. There should be two outputs if eval_set there should
+    be three outputs (train, test, eval), otherwise two outputs (train, test).
+    
+    To see what type train, test, and eval should be, refer to the inputs of 
+    transfer_learning().
+    
+    Insert a more detailed description here.
+    """
+    # Whether shuffle dataset before splitting
+    # Split training and test sets
+    # Split evaluation set from test set if required
+    # Return each training, test and evaluation set arrays
+
+    #remove before submit or find reference if actually needed??? Why is the arg in the function????? #USED IN REPORT PART 7
+    if randomize: #not explictily referenced?
+        # shufle
         ind = np.arange(X.shape[0])
         np.random.shuffle(ind)
         X, Y = X[ind], Y[ind]
@@ -95,6 +125,7 @@ def split_data(X, Y, train_fraction, randomize=False, eval_set=True):
         return (X_train, Y_train, X_test, Y_test, X_eval, Y_eval)
 
     return (X_train, Y_train, X_test, Y_test)
+
 
 def confusion_matrix(predictions, ground_truth):
     num_classes = max(int(max(predictions)), int(max(ground_truth))) + 1
@@ -182,6 +213,31 @@ def k_fold_validation(features, ground_truth, classifier_fn, k=3):
     return avg_metrics, sigma_metrics
 
 def transfer_learning(train_set, eval_set, test_set, model, parameters):
+    '''
+    Implement and perform standard transfer learning here.
+
+    Inputs:
+        - train_set: list or tuple of the training images and labels in the
+            form (images, labels) for training the classifier
+        - eval_set: list or tuple of the images and labels used in evaluating
+            the model during training, in the form (images, labels)
+        - test_set: list or tuple of the training images and labels in the
+            form (images, labels) for testing the classifier after training
+        - model: an instance of tf.keras.applications.MobileNetV2
+        - parameters: list or tuple of parameters to use during training:
+            (learning_rate, momentum, nesterov)
+
+    Outputs:
+        - model : an instance of tf.keras.applications.MobileNetV2
+        - metrics : list of classwise recall, precision, and f1 scores of the 
+            model on the test_set (list of np.ndarray)
+    '''
+    # parameters: learning rate, momentum and nesterov
+    # model training and evaluation inputs and outputs
+    # model test X inputs to obtain predicted outputs Y 
+    # find max predicted values
+    # calculate recall, precision and f1 scores 
+    # evaluated results metrics
     learning_rate, momentum, nesterov = parameters
 
     model = compile_model(model, learning_rate, momentum, nesterov)
